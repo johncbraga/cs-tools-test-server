@@ -1,0 +1,2235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PRO ANALYSES // NEXUS</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      --bg:       #05080f;
+      --bg2:      #080c17;
+      --bg3:      #0a1020;
+      --card:     rgba(14, 22, 42, 0.85);
+      --card2:    rgba(10, 16, 32, 0.9);
+      --stroke:   rgba(0, 210, 255, 0.12);
+      --stroke2:  rgba(0, 210, 255, 0.22);
+      --text:     rgba(220, 240, 255, 0.92);
+      --muted:    rgba(140, 180, 220, 0.60);
+      --cyan:     #00d2ff;
+      --cyan2:    #00a8cc;
+      --yellow:   #ffd700;
+      --green:    #00ff88;
+      --red:      #ff3355;
+      --purple:   #8844ff;
+      --teamA:    #ffd700;
+      --teamB:    #00aaff;
+      --mono:     'Share Tech Mono', monospace;
+      --head:     'Barlow Condensed', sans-serif;
+      --body:     'Rajdhani', sans-serif;
+      --radius:   4px;
+      --radius2:  8px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+
+    body {
+      font-family: var(--body);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      overflow-x: hidden;
+    }
+
+    /* Scanline overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.03) 2px,
+        rgba(0,0,0,0.03) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* Grid background */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,210,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,210,255,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Ambient glows */
+    .glow-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 800px 600px at 10% 5%, rgba(0,210,255,0.06), transparent),
+        radial-gradient(ellipse 600px 400px at 90% 80%, rgba(136,68,255,0.07), transparent),
+        radial-gradient(ellipse 400px 300px at 50% 50%, rgba(0,255,136,0.03), transparent);
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 24px;
+      height: 60px;
+      background: rgba(5,8,15,0.92);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--stroke2);
+      box-shadow: 0 0 40px rgba(0,210,255,0.05);
+    }
+
+    .topbar::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      opacity: 0.4;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-box {
+      position: relative;
+      width: 40px; height: 40px;
+      display: grid;
+      place-items: center;
+    }
+    .logo-box svg {
+      position: absolute;
+      inset: 0;
+      animation: spin-slow 12s linear infinite;
+    }
+    @keyframes spin-slow { to { transform: rotate(360deg); } }
+
+    .logo-inner {
+      font-family: var(--head);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: var(--cyan);
+      z-index: 1;
+    }
+
+    .brand-text {}
+    .brand-name {
+      font-family: var(--head);
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #fff;
+      line-height: 1;
+    }
+    .brand-name span { color: var(--cyan); }
+    .brand-sub {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 20px 20px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* PANEL */
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius2);
+      overflow: hidden;
+      position: relative;
+    }
+    .panel::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan) 40%, var(--cyan) 60%, transparent);
+      opacity: 0.25;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 14px 18px 12px;
+      border-bottom: 1px solid rgba(0,210,255,0.08);
+    }
+
+    .panel-head-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .panel-icon {
+      width: 32px; height: 32px;
+      border: 1px solid var(--stroke2);
+      border-radius: var(--radius);
+      display: grid;
+      place-items: center;
+      color: var(--cyan);
+      font-size: 16px;
+      background: rgba(0,210,255,0.06);
+      flex-shrink: 0;
+    }
+
+    .panel-title {
+      font-family: var(--head);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #fff;
+    }
+    .panel-title span { color: var(--cyan); }
+
+    /* STATS GRID */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+    }
+
+    .stat-card {
+      padding: 20px 20px 18px;
+      border-right: 1px solid var(--stroke);
+      position: relative;
+      transition: background 0.2s;
+    }
+    .stat-card:last-child { border-right: none; }
+    .stat-card:hover { background: rgba(0,210,255,0.03); }
+
+    .stat-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-family: var(--head);
+      font-size: 32px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1;
+    }
+
+    .stat-accent { color: var(--cyan); }
+    .stat-unit {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .stat-bar {
+      position: absolute;
+      bottom: 0; left: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--cyan), transparent);
+      width: 60%;
+      opacity: 0.4;
+    }
+
+    /* BUTTONS */
+    .btn {
+      font-family: var(--head);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      border: 1px solid var(--stroke2);
+      border-radius: var(--radius);
+      padding: 8px 14px;
+      cursor: pointer;
+      color: var(--text);
+      background: rgba(0,210,255,0.05);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: all 0.15s;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .btn:hover {
+      background: rgba(0,210,255,0.12);
+      border-color: var(--cyan);
+      color: #fff;
+      box-shadow: 0 0 12px rgba(0,210,255,0.15);
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-primary {
+      background: rgba(0,210,255,0.1);
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
+    .btn-primary:hover {
+      background: rgba(0,210,255,0.2);
+      box-shadow: 0 0 20px rgba(0,210,255,0.25);
+      color: #fff;
+    }
+
+    .btn-ai {
+      background: linear-gradient(135deg, rgba(136,68,255,0.2), rgba(0,210,255,0.1));
+      border-color: rgba(136,68,255,0.5);
+      color: #c0aaff;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-ai::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent, rgba(255,255,255,0.05));
+    }
+    .btn-ai:hover {
+      border-color: var(--purple);
+      color: #fff;
+      box-shadow: 0 0 24px rgba(136,68,255,0.3);
+    }
+
+    .btn-danger {
+      border-color: rgba(255,51,85,0.4);
+      color: rgba(255,100,120,0.9);
+      background: rgba(255,51,85,0.05);
+    }
+    .btn-danger:hover { border-color: var(--red); background: rgba(255,51,85,0.1); }
+
+    /* FILTERS */
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: flex-end;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    input, select {
+      font-family: var(--mono);
+      font-size: 12px;
+      width: 180px;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      background: rgba(0,5,15,0.7);
+      color: var(--text);
+      outline: none;
+      transition: all 0.15s;
+      letter-spacing: 0.5px;
+    }
+    input::placeholder { color: rgba(140,180,220,0.25); }
+    input:focus, select:focus {
+      border-color: rgba(0,210,255,0.5);
+      box-shadow: 0 0 12px rgba(0,210,255,0.1), inset 0 0 12px rgba(0,210,255,0.03);
+    }
+    select option { background: #080c17; }
+
+    /* LAYOUT GRIDS */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 14px;
+      padding: 14px 18px 18px;
+    }
+    .grid-1 { padding: 0 18px 18px; }
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      padding: 14px 18px 18px;
+    }
+    .compare-history { padding: 0 18px 18px; }
+
+    /* CHART CARD */
+    .chart-card {
+      background: var(--card2);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius2);
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .chart-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0,210,255,0.3), transparent);
+    }
+
+    .chart-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .chart-title {
+      font-family: var(--head);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(220,240,255,0.9);
+    }
+
+    .chart-meta {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .meta-chip {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      background: rgba(0,5,15,0.5);
+      color: rgba(220,240,255,0.8);
+      white-space: nowrap;
+    }
+    .meta-chip b { color: var(--cyan); }
+
+    .canvas-wrap { width: 100%; height: 220px; }
+    .canvas-wrap.tall { height: 300px; }
+    .canvas-wrap canvas { width: 100% !important; height: 100% !important; }
+
+    .hint {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      padding: 10px 0 0;
+      letter-spacing: 0.5px;
+      line-height: 1.5;
+    }
+
+    /* STATUS PILL */
+    .status-pill {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 5px 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      background: rgba(0,5,15,0.5);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-pill::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+    }
+    .status-pill.good::before { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .status-pill.bad::before  { background: var(--red); box-shadow: 0 0 8px var(--red); }
+    .status-pill.warn::before { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+
+    /* BADGES */
+    .badge {
+      font-family: var(--mono);
+      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      background: rgba(0,5,15,0.5);
+      white-space: nowrap;
+    }
+    .badge.ok    { border-color: rgba(0,255,136,0.3); background: rgba(0,255,136,0.08); color: #00ff88; }
+    .badge.danger{ border-color: rgba(255,51,85,0.3); background: rgba(255,51,85,0.08); color: #ff6680; }
+    .badge.warn  { border-color: rgba(255,215,0,0.3); background: rgba(255,215,0,0.08); color: var(--yellow); }
+    .badge.teamA { border-color: rgba(255,215,0,0.4); background: rgba(255,215,0,0.1); color: var(--teamA); }
+    .badge.teamB { border-color: rgba(0,170,255,0.4); background: rgba(0,170,255,0.1); color: var(--teamB); }
+    .badge.neutral{ color: var(--muted); }
+    .badge.info  { border-color: rgba(0,210,255,0.3); background: rgba(0,210,255,0.08); color: var(--cyan); }
+
+    /* TABLE */
+    .table-wrap { overflow: auto; }
+    .match-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      min-width: 920px;
+    }
+    .match-table thead th {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--stroke);
+      background: rgba(0,5,15,0.5);
+      text-align: left;
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(8px);
+    }
+    .match-table tbody td {
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 11px 14px;
+      border-bottom: 1px solid rgba(0,210,255,0.05);
+      color: rgba(220,240,255,0.85);
+      vertical-align: middle;
+    }
+    .match-table tbody tr:hover td {
+      background: rgba(0,210,255,0.04);
+    }
+    .match-table tbody tr:hover td:first-child {
+      border-left: 2px solid rgba(0,210,255,0.4);
+    }
+
+    /* LAST 5 */
+    .last5 { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+
+    .match-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(0,210,255,0.08);
+      background: rgba(0,5,15,0.4);
+      transition: border-color 0.15s;
+    }
+    .match-item:hover { border-color: rgba(0,210,255,0.2); }
+
+    .match-left { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+    .match-line1 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .match-vs {
+      font-family: var(--body);
+      font-weight: 600;
+      font-size: 14px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 260px;
+    }
+    .match-line2 {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .match-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    /* ERROR */
+    .error-box {
+      margin: 12px 18px 16px;
+      padding: 12px 14px;
+      border-radius: var(--radius2);
+      border: 1px solid rgba(255,51,85,0.3);
+      background: rgba(255,51,85,0.08);
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.5;
+      display: none;
+    }
+
+    /* AI ANALYSIS MODAL */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--bg2);
+      border: 1px solid var(--stroke2);
+      border-radius: var(--radius2);
+      width: 100%;
+      max-width: 820px;
+      max-height: 90vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      animation: modal-in 0.2s ease;
+    }
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(20px) scale(0.97); }
+      to   { opacity: 1; transform: none; }
+    }
+    .modal::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--purple), var(--cyan), transparent);
+    }
+
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--stroke);
+      flex-shrink: 0;
+    }
+
+    .modal-title {
+      font-family: var(--head);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .modal-title span { color: var(--purple); }
+
+    .modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--stroke2) transparent;
+    }
+
+    .ai-select-area {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 10px;
+      margin-bottom: 16px;
+      align-items: flex-end;
+    }
+
+    .ai-report {
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.7;
+      color: rgba(220,240,255,0.88);
+    }
+
+    .ai-section {
+      margin-bottom: 20px;
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      background: rgba(0,5,15,0.6);
+      position: relative;
+    }
+    .ai-section::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 3px; bottom: 0;
+      border-radius: var(--radius) 0 0 var(--radius);
+      background: var(--cyan);
+    }
+    .ai-section.warn-section::before { background: var(--yellow); }
+    .ai-section.danger-section::before { background: var(--red); }
+    .ai-section.ai-section-purple::before { background: var(--purple); }
+
+    .ai-section-title {
+      font-family: var(--head);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin-bottom: 8px;
+    }
+    .warn-section .ai-section-title  { color: var(--yellow); }
+    .danger-section .ai-section-title { color: var(--red); }
+    .ai-section-purple .ai-section-title { color: #c0aaff; }
+
+    .ai-stat-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .ai-stat-chip {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      background: rgba(0,210,255,0.06);
+      color: var(--cyan);
+    }
+    .ai-stat-chip.yellow { border-color: rgba(255,215,0,0.3); background: rgba(255,215,0,0.06); color: var(--yellow); }
+    .ai-stat-chip.green  { border-color: rgba(0,255,136,0.3); background: rgba(0,255,136,0.06); color: var(--green); }
+    .ai-stat-chip.red    { border-color: rgba(255,51,85,0.3); background: rgba(255,51,85,0.06); color: var(--red); }
+    .ai-stat-chip.purple { border-color: rgba(136,68,255,0.3); background: rgba(136,68,255,0.06); color: #c0aaff; }
+
+    .ai-verdict {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, rgba(136,68,255,0.1), rgba(0,210,255,0.05));
+      border: 1px solid rgba(136,68,255,0.25);
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    .ai-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      gap: 12px;
+      text-align: center;
+    }
+    .ai-placeholder-icon { font-size: 40px; opacity: 0.3; }
+    .ai-placeholder-text { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+    .loading-dots::after {
+      content: '';
+      animation: dots 1.4s infinite;
+    }
+    @keyframes dots {
+      0%   { content: '.'; }
+      33%  { content: '..'; }
+      66%  { content: '...'; }
+      100% { content: ''; }
+    }
+
+    /* FOOTER */
+    .footer {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      text-align: right;
+      padding: 0 4px;
+    }
+
+    kbd {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      background: rgba(0,5,15,0.6);
+      color: rgba(220,240,255,0.75);
+    }
+
+    @media (max-width: 1020px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .grid-2, .compare-grid { grid-template-columns: 1fr; }
+      input, select { width: 150px; }
+    }
+    @media (max-width: 640px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .ai-select-area { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+<div class="glow-bg"></div>
+
+<!-- AI Analysis Modal -->
+<div class="modal-overlay" id="aiModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">⚡ <span>AI</span> MATCH ANALYSIS</div>
+      <button class="btn btn-danger" id="closeModal" type="button">✕ CLOSE</button>
+    </div>
+    <div class="modal-body">
+      <div class="ai-select-area">
+        <div class="field" style="flex:1">
+          <label>Team A</label>
+          <select id="aiTeamA" style="width:100%">
+            <option value="">Select Team A</option>
+          </select>
+        </div>
+        <div class="field" style="flex:1">
+          <label>Team B</label>
+          <select id="aiTeamB" style="width:100%">
+            <option value="">Select Team B</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Map</label>
+          <select id="aiMapSelect" style="width:140px">
+            <option value="__general__">General</option>
+          </select>
+        </div>
+        <button class="btn btn-ai" id="runAiBtn" type="button" style="align-self:flex-end">⚡ ANALYSE</button>
+      </div>
+      <div id="aiOutput">
+        <div class="ai-placeholder">
+          <div class="ai-placeholder-icon">🎯</div>
+          <div class="ai-placeholder-text">Select two teams and click ANALYSE to generate an intelligent match report.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo-box">
+      <svg width="40" height="40" viewBox="0 0 40 40">
+        <polygon points="20,2 38,11 38,29 20,38 2,29 2,11" fill="none" stroke="rgba(0,210,255,0.35)" stroke-width="1"/>
+        <polygon points="20,6 34,13 34,27 20,34 6,27 6,13" fill="none" stroke="rgba(0,210,255,0.15)" stroke-width="0.5"/>
+      </svg>
+      <span class="logo-inner">PA</span>
+    </div>
+    <div class="brand-text">
+      <div class="brand-name">PRO <span>ANALYSES</span></div>
+      <div class="brand-sub">Match Intelligence System v2.0</div>
+    </div>
+  </div>
+  <div class="top-actions">
+    <button class="btn btn-ai" id="openAiModal" type="button">⚡ AI ANALYSIS</button>
+    <button class="btn btn-primary" id="updateBtn" type="button">↻ UPDATE</button>
+    <a class="btn" href="index.html">← MENU</a>
+  </div>
+</header>
+
+<main class="container">
+
+  <!-- Dashboard -->
+  <section class="panel">
+    <div class="panel-head">
+      <div class="panel-head-left">
+        <div class="panel-icon">▣</div>
+        <div class="panel-title">DASHBOARD <span>//</span> OVERVIEW</div>
+      </div>
+      <span class="status-pill" id="statusPill">INITIALIZING</span>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">// total matches</div>
+        <div class="stat-value stat-accent" id="totalMatches">—</div>
+        <div class="stat-unit">records loaded</div>
+        <div class="stat-bar"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">// team 1 wins</div>
+        <div class="stat-value" id="team1Wins">—</div>
+        <div class="stat-unit">as T1</div>
+        <div class="stat-bar" style="background: linear-gradient(90deg, var(--green), transparent);"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">// team 2 wins</div>
+        <div class="stat-value" id="team2Wins">—</div>
+        <div class="stat-unit">as T2</div>
+        <div class="stat-bar" style="background: linear-gradient(90deg, var(--yellow), transparent);"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">// most played map</div>
+        <div class="stat-value" id="topMap" style="font-size:22px;">—</div>
+        <div class="stat-unit">highest frequency</div>
+        <div class="stat-bar" style="background: linear-gradient(90deg, var(--purple), transparent);"></div>
+      </div>
+    </div>
+
+    <div id="errorBox" class="error-box"></div>
+  </section>
+
+  <!-- Team Performance -->
+  <section class="panel">
+    <div class="panel-head">
+      <div class="panel-head-left">
+        <div class="panel-icon">◈</div>
+        <div class="panel-title">TEAM <span>//</span> PERFORMANCE</div>
+      </div>
+      <div class="filters">
+        <div class="field">
+          <label>Team</label>
+          <select id="teamSelect">
+            <option value="">Select a team</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Map</label>
+          <select id="teamMapSelect" disabled>
+            <option value="__general__">General (all maps)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="chart-card">
+        <div class="chart-top">
+          <div class="chart-title">WINS vs LOSSES</div>
+          <div class="chart-meta">
+            <div class="meta-chip">Total: <b id="totalBox">—</b></div>
+            <div class="meta-chip">W: <b id="winsBox">—</b></div>
+            <div class="meta-chip">L: <b id="lossesBox">—</b></div>
+            <div class="meta-chip">Rate: <b id="rateBox">—</b></div>
+          </div>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="wlChart"></canvas>
+        </div>
+        <div class="hint">// select map or GENERAL to view win/loss breakdown</div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-top">
+          <div class="chart-title">LAST 5 MATCHES</div>
+          <div class="chart-meta">
+            <div class="meta-chip" id="last5Scope">Scope: General</div>
+          </div>
+        </div>
+        <div id="last5List" class="last5">
+          <div class="match-item">
+            <div class="match-left">
+              <div class="match-line1">
+                <span class="badge neutral">select a team</span>
+                <span class="match-vs">to display matches</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="hint">// tip: press <kbd>0</kbd> to go back (when not in an input field)</div>
+      </div>
+    </div>
+
+    <div class="grid-1">
+      <div class="chart-card" style="min-height: 360px;">
+        <div class="chart-top">
+          <div class="chart-title">MAP OVERVIEW // BEST & WORST</div>
+          <div class="chart-meta">
+            <div class="meta-chip">Best: <b id="bestMapBox">—</b> <span id="bestMapMeta" style="color:var(--muted)"></span></div>
+            <div class="meta-chip">Worst: <b id="worstMapBox">—</b> <span id="worstMapMeta" style="color:var(--muted)"></span></div>
+          </div>
+        </div>
+        <div class="canvas-wrap tall">
+          <canvas id="mapPlayChart"></canvas>
+        </div>
+        <div class="hint">// maps ordered by matches played (ascending) — <span style="color:var(--teamA)">■ best</span> — <span style="color:var(--purple)">■ worst</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Team vs Team Comparison -->
+  <section class="panel">
+    <div class="panel-head">
+      <div class="panel-head-left">
+        <div class="panel-icon">⇌</div>
+        <div class="panel-title">HEAD <span>//</span> TO HEAD</div>
+      </div>
+      <div class="filters">
+        <div class="field">
+          <label>Team A</label>
+          <select id="compareTeamA">
+            <option value="">Select Team A</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Team B</label>
+          <select id="compareTeamB">
+            <option value="">Select Team B</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Map</label>
+          <select id="compareMapSelect" disabled>
+            <option value="__general__">General (all maps)</option>
+          </select>
+        </div>
+        <button class="btn" id="swapBtn" type="button" title="Swap teams">⇄ SWAP</button>
+      </div>
+    </div>
+
+    <div class="compare-grid">
+      <div class="chart-card">
+        <div class="chart-top">
+          <div class="chart-title">H2H WINS</div>
+          <div class="chart-meta">
+            <div class="meta-chip">Matches: <b id="h2hMatchesBox">—</b></div>
+            <div class="meta-chip"><span class="badge teamA" id="teamANameBadge">A</span> <b id="h2hAWinsBox">—</b></div>
+            <div class="meta-chip"><span class="badge teamB" id="teamBNameBadge">B</span> <b id="h2hBWinsBox">—</b></div>
+          </div>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="h2hBarChart"></canvas>
+        </div>
+        <div class="hint" id="h2hHint">// select two teams to see head-to-head record</div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-top">
+          <div class="chart-title">WIN PROBABILITY</div>
+          <div class="chart-meta">
+            <div class="meta-chip" id="probSourceBox">Source: —</div>
+            <div class="meta-chip"><span class="badge teamA" id="probTeamABadge">A</span> <b id="probABox">—</b></div>
+            <div class="meta-chip"><span class="badge teamB" id="probTeamBBadge">B</span> <b id="probBBox">—</b></div>
+            <div class="meta-chip"><span class="badge teamA">A rate</span> <b id="mapRateABox">—</b></div>
+            <div class="meta-chip"><span class="badge teamB">B rate</span> <b id="mapRateBBox">—</b></div>
+          </div>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="probDoughnut"></canvas>
+        </div>
+        <div class="hint" id="probDataHint">// probability uses H2H when available, fallback to map win rate</div>
+      </div>
+    </div>
+
+    <div class="compare-history">
+      <div class="chart-card">
+        <div class="chart-top">
+          <div class="chart-title">RECENT H2H MATCHES</div>
+          <div class="chart-meta">
+            <div class="meta-chip" id="h2hHistoryScope">Scope: General</div>
+          </div>
+        </div>
+        <div id="h2hHistoryList" class="last5">
+          <div class="match-item">
+            <div class="match-left">
+              <div class="match-line1">
+                <span class="badge neutral">select Team A and Team B</span>
+                <span class="match-vs">to display history</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="hint">// most recent entries first (from Excel file)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Matches Table -->
+  <section class="panel">
+    <div class="panel-head">
+      <div class="panel-head-left">
+        <div class="panel-icon">▤</div>
+        <div class="panel-title">MATCH <span>//</span> DATABASE</div>
+      </div>
+      <div class="filters">
+        <div class="field">
+          <label>Search team</label>
+          <input id="searchInput" type="text" placeholder="team name…" autocomplete="off" list="teamsDatalist"/>
+          <datalist id="teamsDatalist"></datalist>
+        </div>
+        <div class="field">
+          <label>Map</label>
+          <select id="mapSelect"><option value="">All maps</option></select>
+        </div>
+        <div class="field">
+          <label>Event</label>
+          <select id="eventSelect"><option value="">All events</option></select>
+        </div>
+        <div class="field">
+          <label>Date</label>
+          <input id="dateInput" type="date"/>
+        </div>
+        <div class="field">
+          <label>Month</label>
+          <select id="monthSelect">
+            <option value="">All</option>
+            <option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option>
+            <option value="04">Apr</option><option value="05">May</option><option value="06">Jun</option>
+            <option value="07">Jul</option><option value="08">Aug</option><option value="09">Sep</option>
+            <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Year</label>
+          <select id="yearSelect"><option value="">All</option></select>
+        </div>
+        <div class="field">
+          <label>Opponent</label>
+          <select id="opponentSelect" disabled><option value="">All opponents</option></select>
+        </div>
+        <button class="btn btn-danger" id="clearBtn" type="button">✕ CLEAR</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="match-table" aria-label="Match list">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>TEAM 1</th>
+            <th>TEAM 2</th>
+            <th>MAP</th>
+            <th>SCORE</th>
+            <th>RESULT</th>
+            <th>EVENT</th>
+            <th>DATE</th>
+          </tr>
+        </thead>
+        <tbody id="matchesTbody">
+          <tr>
+            <td colspan="8"><span class="badge info">LOADING</span> Reading Excel file…</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="hint" style="padding: 12px 18px 16px;">
+      // Result shown as WIN/LOSE from searched team's perspective.
+      Use DATE for exact day, or MONTH + YEAR for broader filters.
+    </div>
+  </section>
+
+  <footer class="footer">
+    <span id="sourceInfo">source: file/history.xlsx</span>
+  </footer>
+</main>
+
+<script>
+  const EXCEL_PATH = "file/history.xlsx";
+  const EXPECTED_HEADERS = ["Team 1","Team 2","Map","Result","Event","Date"];
+  const GENERAL_MAP_VALUE = "__general__";
+  const MAP_LABEL_BEST  = "#ffd700";
+  const MAP_LABEL_WORST = "#8844ff";
+  const MAP_LABEL_DEF   = "rgba(220,240,255,0.70)";
+
+  const els = {
+    statusPill:   document.getElementById("statusPill"),
+    totalMatches: document.getElementById("totalMatches"),
+    team1Wins:    document.getElementById("team1Wins"),
+    team2Wins:    document.getElementById("team2Wins"),
+    topMap:       document.getElementById("topMap"),
+    tbody:        document.getElementById("matchesTbody"),
+    search:       document.getElementById("searchInput"),
+    mapSelect:    document.getElementById("mapSelect"),
+    eventSelect:  document.getElementById("eventSelect"),
+    dateInput:    document.getElementById("dateInput"),
+    monthSelect:  document.getElementById("monthSelect"),
+    yearSelect:   document.getElementById("yearSelect"),
+    opponentSelect: document.getElementById("opponentSelect"),
+    clearBtn:     document.getElementById("clearBtn"),
+    sourceInfo:   document.getElementById("sourceInfo"),
+    errorBox:     document.getElementById("errorBox"),
+    updateBtn:    document.getElementById("updateBtn"),
+    teamSelect:   document.getElementById("teamSelect"),
+    teamMapSelect:document.getElementById("teamMapSelect"),
+    totalBox:     document.getElementById("totalBox"),
+    winsBox:      document.getElementById("winsBox"),
+    lossesBox:    document.getElementById("lossesBox"),
+    rateBox:      document.getElementById("rateBox"),
+    last5Scope:   document.getElementById("last5Scope"),
+    last5List:    document.getElementById("last5List"),
+    wlCanvas:     document.getElementById("wlChart"),
+    bestMapBox:   document.getElementById("bestMapBox"),
+    worstMapBox:  document.getElementById("worstMapBox"),
+    bestMapMeta:  document.getElementById("bestMapMeta"),
+    worstMapMeta: document.getElementById("worstMapMeta"),
+    mapPlayCanvas:document.getElementById("mapPlayChart"),
+    compareTeamA: document.getElementById("compareTeamA"),
+    compareTeamB: document.getElementById("compareTeamB"),
+    compareMapSelect: document.getElementById("compareMapSelect"),
+    swapBtn:      document.getElementById("swapBtn"),
+    h2hMatchesBox:document.getElementById("h2hMatchesBox"),
+    h2hAWinsBox:  document.getElementById("h2hAWinsBox"),
+    h2hBWinsBox:  document.getElementById("h2hBWinsBox"),
+    teamANameBadge: document.getElementById("teamANameBadge"),
+    teamBNameBadge: document.getElementById("teamBNameBadge"),
+    h2hHint:      document.getElementById("h2hHint"),
+    probSourceBox:document.getElementById("probSourceBox"),
+    probABox:     document.getElementById("probABox"),
+    probBBox:     document.getElementById("probBBox"),
+    probTeamABadge: document.getElementById("probTeamABadge"),
+    probTeamBBadge: document.getElementById("probTeamBBadge"),
+    probDataHint: document.getElementById("probDataHint"),
+    mapRateABox:  document.getElementById("mapRateABox"),
+    mapRateBBox:  document.getElementById("mapRateBBox"),
+    h2hHistoryScope: document.getElementById("h2hHistoryScope"),
+    h2hHistoryList:  document.getElementById("h2hHistoryList"),
+    h2hBarCanvas: document.getElementById("h2hBarChart"),
+    probCanvas:   document.getElementById("probDoughnut"),
+    // AI
+    aiModal:      document.getElementById("aiModal"),
+    openAiModal:  document.getElementById("openAiModal"),
+    closeModal:   document.getElementById("closeModal"),
+    aiTeamA:      document.getElementById("aiTeamA"),
+    aiTeamB:      document.getElementById("aiTeamB"),
+    aiMapSelect:  document.getElementById("aiMapSelect"),
+    runAiBtn:     document.getElementById("runAiBtn"),
+    aiOutput:     document.getElementById("aiOutput"),
+  };
+
+  let allMatches = [];
+  let wlChart = null, mapPlayChart = null, h2hBarChart = null, probDoughnut = null;
+  let teamLowerToCanonical = new Map();
+  let canonicalTeams = [];
+  let bestMapsSet = new Set();
+  let worstMapsSet = new Set();
+
+  init();
+
+  async function init(){
+    els.sourceInfo.textContent = `source: ${EXCEL_PATH}`;
+    setupShortcutBack();
+    setupUpdateButton();
+    setupTeamControls();
+    setupMatchTableControls();
+    setupComparisonControls();
+    setupAIModal();
+    buildCharts();
+    await reloadExcel(true);
+  }
+
+  /* ——————————— CORE ——————————— */
+  function setupUpdateButton(){
+    els.updateBtn.addEventListener("click", () => reloadExcel(true));
+  }
+
+  async function reloadExcel(force){
+    try{
+      setStatus(force ? "SYNCING" : "LOADING", force ? "warn" : "");
+      disableUpdate(true);
+      allMatches = await loadExcelMatches(EXCEL_PATH, force);
+      rebuildTeamLookup(allMatches);
+      populateMapOptions(allMatches);
+      populateEventOptions(allMatches);
+      populateYearOptions(allMatches);
+      populateTeamOptions(allMatches);
+      populateComparisonTeamOptions(allMatches);
+      populateAITeamOptions(allMatches);
+      populateSearchDatalist();
+      refreshOpponentOptions();
+      applyMatchFilters();
+      renderStats(getFilteredMatchesFromControls());
+      reconcileTeamSelectionsAfterReload();
+      updateTeamSections();
+      rebuildCompareMapOptions();
+      updateComparison();
+      setStatus(`ONLINE // ${allMatches.length} RECORDS`, "good");
+      hideError();
+    }catch(err){
+      console.error(err);
+      setStatus("OFFLINE // LOAD FAILED", "bad");
+      showError(`Cannot load <b>${EXCEL_PATH}</b>. Make sure the file exists in file/ and you're using a local web server (e.g. VS Code Live Server).`);
+      els.tbody.innerHTML = `<tr><td colspan="8"><span class="badge danger">ERROR</span> Could not load ${escapeHtml(EXCEL_PATH)}</td></tr>`;
+    }finally{
+      disableUpdate(false);
+    }
+  }
+
+  function disableUpdate(d){ els.updateBtn.disabled = d; }
+
+  function setStatus(text, state){
+    els.statusPill.textContent = text;
+    els.statusPill.className = "status-pill" + (state ? ` ${state}` : "");
+  }
+
+  function showError(html){ els.errorBox.style.display="block"; els.errorBox.innerHTML=html; }
+  function hideError(){ els.errorBox.style.display="none"; els.errorBox.innerHTML=""; }
+
+  function setupShortcutBack(){
+    document.addEventListener("keydown", e => {
+      if (e.key !== "0") return;
+      const a = document.activeElement;
+      if (a && (a.tagName==="INPUT"||a.tagName==="TEXTAREA"||a.tagName==="SELECT"||a.isContentEditable)) return;
+      e.preventDefault();
+      window.history.back();
+    });
+  }
+
+  /* ——————————— TEAM LOOKUP ——————————— */
+  function rebuildTeamLookup(matches){
+    const t = new Set();
+    for(const m of matches){ t.add(m.team1); t.add(m.team2); }
+    canonicalTeams = [...t].sort((a,b)=>a.localeCompare(b));
+    teamLowerToCanonical = new Map();
+    for(const t of canonicalTeams) teamLowerToCanonical.set(t.toLowerCase(), t);
+  }
+
+  function populateSearchDatalist(){
+    const dl = document.getElementById("teamsDatalist");
+    if(!dl) return;
+    dl.innerHTML = "";
+    for(const t of canonicalTeams){
+      const o = document.createElement("option"); o.value=t; dl.appendChild(o);
+    }
+  }
+
+  function resolveCanonicalTeam(k){ return teamLowerToCanonical.get((k||"").trim().toLowerCase()) || null; }
+
+  function parseSearchInput(){
+    const raw = (els.search.value||"").trim();
+    if(!raw) return {raw:"",q:"",qLower:"",exact:false,exactTeam:null};
+    let q=raw, exact=false;
+    if(q.endsWith(".")){ q=q.slice(0,-1).trim(); exact=true; }
+    if(q.startsWith("=")){ q=q.slice(1).trim(); exact=true; }
+    if((q.startsWith('"')&&q.endsWith('"'))||(q.startsWith("'")&&q.endsWith("'"))){ q=q.slice(1,-1).trim(); exact=true; }
+    const qLower=q.toLowerCase();
+    return {raw,q,qLower,exact,exactTeam:resolveCanonicalTeam(qLower)};
+  }
+
+  function resolveFocusTeamFromSearch(){
+    const s=parseSearchInput();
+    if(!s.qLower) return null;
+    if(s.exact) return s.exactTeam||null;
+    if(s.exactTeam) return s.exactTeam;
+    const hits=canonicalTeams.filter(t=>t.toLowerCase().includes(s.qLower));
+    return hits.length===1 ? hits[0] : null;
+  }
+
+  /* ——————————— MATCH TABLE CONTROLS ——————————— */
+  function setupMatchTableControls(){
+    const onChange = () => {
+      refreshOpponentOptions();
+      applyMatchFilters();
+      renderStats(getFilteredMatchesFromControls());
+    };
+    els.search.addEventListener("input", onChange);
+    els.mapSelect.addEventListener("change", onChange);
+    els.eventSelect.addEventListener("change", onChange);
+    els.dateInput.addEventListener("change", () => {
+      if(els.dateInput.value){ els.monthSelect.value=""; els.yearSelect.value=""; }
+      onChange();
+    });
+    els.monthSelect.addEventListener("change", () => {
+      if(els.monthSelect.value) els.dateInput.value="";
+      onChange();
+    });
+    els.yearSelect.addEventListener("change", () => {
+      if(els.yearSelect.value) els.dateInput.value="";
+      onChange();
+    });
+    els.opponentSelect.addEventListener("change", () => {
+      applyMatchFilters();
+      renderStats(getFilteredMatchesFromControls());
+    });
+    els.clearBtn.addEventListener("click", () => {
+      els.search.value=""; els.mapSelect.value=""; els.eventSelect.value="";
+      els.dateInput.value=""; els.monthSelect.value=""; els.yearSelect.value="";
+      els.opponentSelect.value=""; els.opponentSelect.disabled=true;
+      els.opponentSelect.innerHTML=`<option value="">All opponents</option>`;
+      render(allMatches); renderStats(allMatches);
+    });
+  }
+
+  function getFocusTeam(){ return resolveFocusTeamFromSearch(); }
+
+  function refreshOpponentOptions(){
+    const focus=getFocusTeam();
+    const prev=els.opponentSelect.value;
+    if(!focus){ els.opponentSelect.disabled=true; els.opponentSelect.innerHTML=`<option value="">All opponents</option>`; return; }
+    const opponents=new Set();
+    for(const m of allMatches){
+      if(m.team1===focus) opponents.add(m.team2);
+      else if(m.team2===focus) opponents.add(m.team1);
+    }
+    const sorted=[...opponents].sort((a,b)=>a.localeCompare(b));
+    els.opponentSelect.disabled=false;
+    els.opponentSelect.innerHTML=`<option value="">All opponents</option>`;
+    for(const o of sorted){ const opt=document.createElement("option"); opt.value=o; opt.textContent=o; els.opponentSelect.appendChild(opt); }
+    if(prev&&sorted.includes(prev)) els.opponentSelect.value=prev; else els.opponentSelect.value="";
+  }
+
+  function getFilteredMatchesFromControls(){
+    const s=parseSearchInput();
+    const map=els.mapSelect.value;
+    const event=els.eventSelect.value;
+    const pickedDayISO=(els.dateInput.value||"").trim();
+    const month=(els.monthSelect.value||"").trim();
+    const year=(els.yearSelect.value||"").trim();
+    const focus=getFocusTeam();
+    const opponent=els.opponentSelect.value;
+    return allMatches.filter(m => {
+      let mq=true;
+      if(s.qLower){
+        if(s.exact&&focus) mq=(m.team1===focus||m.team2===focus);
+        else mq=m.team1.toLowerCase().includes(s.qLower)||m.team2.toLowerCase().includes(s.qLower);
+      }
+      if(!mq) return false;
+      if(map&&m.map!==map) return false;
+      if(event&&(m.event||"")!==event) return false;
+      if(pickedDayISO){ if(!m.dateISO||m.dateISO!==pickedDayISO) return false; }
+      else {
+        if(year&&String(m.dateYear||"")!==year) return false;
+        if(month&&String(m.dateMonth||"").padStart(2,"0")!==month) return false;
+      }
+      if(opponent&&focus){
+        if(!((m.team1===focus&&m.team2===opponent)||(m.team2===focus&&m.team1===opponent))) return false;
+      }
+      return true;
+    });
+  }
+
+  function applyMatchFilters(){ render(getFilteredMatchesFromControls()); }
+
+  function render(matches){
+    const focus=getFocusTeam();
+    els.tbody.innerHTML="";
+    if(!matches.length){
+      els.tbody.innerHTML=`<tr><td colspan="8"><span class="badge neutral">NO RESULTS</span> try clearing filters</td></tr>`;
+      return;
+    }
+    matches.forEach((m,idx)=>{
+      const rel=computeRelativeResult(m,focus);
+      const tr=document.createElement("tr");
+      tr.innerHTML=`
+        <td style="color:var(--muted)">${idx+1}</td>
+        <td>${escapeHtml(m.team1)}</td>
+        <td>${escapeHtml(m.team2)}</td>
+        <td style="color:var(--cyan)">${escapeHtml(m.map)}</td>
+        <td><span class="badge neutral">${m.score1}×${m.score2}</span></td>
+        <td>${formatRelativeResultBadge(rel)}</td>
+        <td style="color:var(--muted);font-size:11px">${escapeHtml(m.event||"")}</td>
+        <td style="color:var(--muted)">${escapeHtml(m.date||"")}</td>`;
+      els.tbody.appendChild(tr);
+    });
+  }
+
+  function computeRelativeResult(match, focusTeam){
+    if(!focusTeam) return {status:"none"};
+    const as1=match.team1===focusTeam, as2=match.team2===focusTeam;
+    if(!as1&&!as2) return {status:"none"};
+    if(match.winnerSide==="Tie") return {status:"tie"};
+    return {status:((as1&&match.winnerSide==="Team 1")||(as2&&match.winnerSide==="Team 2"))?"win":"lose"};
+  }
+
+  function formatRelativeResultBadge(rel){
+    if(rel.status==="win")  return `<span class="badge ok">▲ WIN</span>`;
+    if(rel.status==="lose") return `<span class="badge danger">▼ LOSS</span>`;
+    if(rel.status==="tie")  return `<span class="badge neutral">= TIE</span>`;
+    return `<span class="badge neutral">—</span>`;
+  }
+
+  function renderStats(matches){
+    els.totalMatches.textContent = matches.length;
+    els.team1Wins.textContent = matches.filter(m=>m.winnerSide==="Team 1").length;
+    els.team2Wins.textContent = matches.filter(m=>m.winnerSide==="Team 2").length;
+    const mapCounts=new Map();
+    for(const m of matches) mapCounts.set(m.map,(mapCounts.get(m.map)||0)+1);
+    let topMap="—",topCount=0;
+    for(const [mp,count] of mapCounts.entries()) if(count>topCount){topCount=count;topMap=mp;}
+    els.topMap.textContent=topMap;
+  }
+
+  function populateMapOptions(matches){
+    while(els.mapSelect.options.length>1) els.mapSelect.remove(1);
+    [...new Set(matches.map(m=>m.map))].sort((a,b)=>a.localeCompare(b)).forEach(mp=>{
+      const o=document.createElement("option"); o.value=mp; o.textContent=mp; els.mapSelect.appendChild(o);
+    });
+  }
+
+  function populateEventOptions(matches){
+    while(els.eventSelect.options.length>1) els.eventSelect.remove(1);
+    [...new Set(matches.map(m=>(m.event||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b)).forEach(ev=>{
+      const o=document.createElement("option"); o.value=ev; o.textContent=ev; els.eventSelect.appendChild(o);
+    });
+  }
+
+  function populateYearOptions(matches){
+    const prev=els.yearSelect.value;
+    els.yearSelect.innerHTML=`<option value="">All</option>`;
+    const years=[...new Set(matches.map(m=>m.dateYear).filter(Boolean))].sort();
+    years.forEach(y=>{ const o=document.createElement("option"); o.value=y; o.textContent=y; els.yearSelect.appendChild(o); });
+    if(prev&&years.includes(Number(prev))) els.yearSelect.value=prev;
+  }
+
+  /* ——————————— TEAM PERFORMANCE ——————————— */
+  function setupTeamControls(){
+    els.teamSelect.addEventListener("change", ()=>{ rebuildTeamMapOptions(); updateTeamSections(); });
+    els.teamMapSelect.addEventListener("change", ()=>updateTeamSections());
+  }
+
+  function populateTeamOptions(matches){
+    const teams=new Set();
+    for(const m of matches){ teams.add(m.team1); teams.add(m.team2); }
+    const sorted=[...teams].sort((a,b)=>a.localeCompare(b));
+    const prev=els.teamSelect.value;
+    els.teamSelect.innerHTML=`<option value="">Select a team</option>`;
+    sorted.forEach(t=>{ const o=document.createElement("option"); o.value=t; o.textContent=t; els.teamSelect.appendChild(o); });
+    if(prev&&sorted.includes(prev)) els.teamSelect.value=prev;
+  }
+
+  function reconcileTeamSelectionsAfterReload(){
+    if(els.teamSelect.value) rebuildTeamMapOptions();
+    else{ els.teamMapSelect.disabled=true; els.teamMapSelect.innerHTML=`<option value="${GENERAL_MAP_VALUE}">General (all maps)</option>`; }
+  }
+
+  function rebuildTeamMapOptions(){
+    const team=els.teamSelect.value;
+    els.teamMapSelect.innerHTML="";
+    const gen=document.createElement("option"); gen.value=GENERAL_MAP_VALUE; gen.textContent="General (all maps)"; els.teamMapSelect.appendChild(gen);
+    if(!team){ els.teamMapSelect.disabled=true; els.teamMapSelect.value=GENERAL_MAP_VALUE; return; }
+    const maps=new Set();
+    for(const m of allMatches) if(m.team1===team||m.team2===team) maps.add(m.map);
+    [...maps].sort((a,b)=>a.localeCompare(b)).forEach(mp=>{ const o=document.createElement("option"); o.value=mp; o.textContent=mp; els.teamMapSelect.appendChild(o); });
+    els.teamMapSelect.disabled=false;
+    if(![...els.teamMapSelect.options].some(o=>o.value===els.teamMapSelect.value)) els.teamMapSelect.value=GENERAL_MAP_VALUE;
+  }
+
+  function computeTeamStats(team, mapValue){
+    const mf=(mapValue&&mapValue!==GENERAL_MAP_VALUE)?mapValue:null;
+    let wins=0,losses=0;
+    for(const m of allMatches){
+      if(mf&&m.map!==mf) continue;
+      const as1=m.team1===team, as2=m.team2===team;
+      if(!as1&&!as2) continue;
+      const win=(as1&&m.winnerSide==="Team 1")||(as2&&m.winnerSide==="Team 2");
+      if(win) wins++; else losses++;
+    }
+    const total=wins+losses;
+    return {wins,losses,total,rate:total>0?(wins/total)*100:0};
+  }
+
+  function updateTeamSections(){ updateWLChartAndBoxes(); updateLast5(); updateGeneralOverview(); }
+
+  function updateWLChartAndBoxes(){
+    const team=els.teamSelect.value, mapValue=els.teamMapSelect.value||GENERAL_MAP_VALUE;
+    if(!team){
+      ["totalBox","winsBox","lossesBox","rateBox"].forEach(k=>els[k].textContent="—");
+      wlChart.data.datasets[0].data=[0,0]; wlChart.update(); return;
+    }
+    const s=computeTeamStats(team,mapValue);
+    els.totalBox.textContent=s.total; els.winsBox.textContent=s.wins;
+    els.lossesBox.textContent=s.losses; els.rateBox.textContent=s.total>0?`${s.rate.toFixed(1)}%`:"0%";
+    wlChart.data.datasets[0].data=[s.wins,s.losses]; wlChart.update();
+  }
+
+  function updateLast5(){
+    const team=els.teamSelect.value, mapValue=els.teamMapSelect.value||GENERAL_MAP_VALUE;
+    els.last5List.innerHTML="";
+    els.last5Scope.textContent=(mapValue&&mapValue!==GENERAL_MAP_VALUE)?`Scope: ${mapValue}`:"Scope: General";
+    if(!team){
+      els.last5List.innerHTML=`<div class="match-item"><div class="match-left"><div class="match-line1"><span class="badge neutral">select a team</span><span class="match-vs">to display matches</span></div></div></div>`;
+      return;
+    }
+    const last=getLastMatches(team,5,mapValue);
+    if(!last.length){
+      els.last5List.innerHTML=`<div class="match-item"><div class="match-left"><div class="match-line1"><span class="badge warn">NO DATA</span><span class="match-vs">No matches found${mapValue!==GENERAL_MAP_VALUE?" on "+escapeHtml(mapValue):""}.</span></div></div></div>`;
+      return;
+    }
+    for(const item of last){
+      const row=document.createElement("div"); row.className="match-item";
+      row.innerHTML=`
+        <div class="match-left">
+          <div class="match-line1">
+            <span class="badge ${item.isWin?"ok":"danger"}">${item.isWin?"▲ W":"▼ L"}</span>
+            <span class="match-vs">vs ${escapeHtml(item.opponent)}</span>
+          </div>
+          <div class="match-line2">
+            <span class="badge neutral">${escapeHtml(item.map)}</span>
+            <span class="badge neutral">${item.teamScore}×${item.oppScore}</span>
+            <span style="color:var(--muted);font-size:11px">${escapeHtml(item.sideLabel)}</span>
+          </div>
+        </div>
+        <div class="match-right">
+          <span class="badge neutral">${escapeHtml(item.rawResult)}</span>
+        </div>`;
+      els.last5List.appendChild(row);
+    }
+  }
+
+  function getLastMatches(team,n,mapValue){
+    const mf=(mapValue&&mapValue!==GENERAL_MAP_VALUE)?mapValue:null;
+    const out=[];
+    for(let i=allMatches.length-1;i>=0&&out.length<n;i--){
+      const m=allMatches[i];
+      if(mf&&m.map!==mf) continue;
+      const as1=m.team1===team, as2=m.team2===team;
+      if(!as1&&!as2) continue;
+      const opponent=as1?m.team2:m.team1;
+      const teamScore=as1?m.score1:m.score2;
+      const oppScore=as1?m.score2:m.score1;
+      const isWin=(as1&&m.winnerSide==="Team 1")||(as2&&m.winnerSide==="Team 2");
+      out.push({opponent,map:m.map,teamScore,oppScore,isWin,sideLabel:as1?"(T1)":"(T2)",rawResult:`${m.score1}×${m.score2}`});
+    }
+    return out;
+  }
+
+  function updateGeneralOverview(){
+    const team=els.teamSelect.value;
+    bestMapsSet=new Set(); worstMapsSet=new Set();
+    if(!team){
+      ["bestMapBox","worstMapBox"].forEach(k=>els[k].textContent="—");
+      ["bestMapMeta","worstMapMeta"].forEach(k=>els[k].textContent="");
+      mapPlayChart.data.labels=[]; mapPlayChart.data.datasets[0].data=[]; mapPlayChart.update(); return;
+    }
+    const byMap=new Map();
+    for(const m of allMatches){
+      const as1=m.team1===team, as2=m.team2===team;
+      if(!as1&&!as2) continue;
+      if(!byMap.has(m.map)) byMap.set(m.map,{wins:0,losses:0,total:0,rate:0});
+      const s=byMap.get(m.map);
+      const win=(as1&&m.winnerSide==="Team 1")||(as2&&m.winnerSide==="Team 2");
+      if(win) s.wins++; else s.losses++;
+      s.total++;
+    }
+    for(const s of byMap.values()) s.rate=s.total>0?(s.wins/s.total)*100:0;
+    const entries=[...byMap.entries()];
+    if(!entries.length) return;
+    const best=entries.slice().sort((a,b)=>(b[1].rate-a[1].rate)||(b[1].total-a[1].total))[0];
+    const worst=entries.slice().sort((a,b)=>(a[1].rate-b[1].rate)||(b[1].total-a[1].total))[0];
+    els.bestMapBox.textContent=best[0];
+    els.worstMapBox.textContent=worst[0];
+    els.bestMapMeta.textContent=` (${best[1].rate.toFixed(1)}% • ${best[1].wins}W-${best[1].losses}L)`;
+    els.worstMapMeta.textContent=` (${worst[1].rate.toFixed(1)}% • ${worst[1].wins}W-${worst[1].losses}L)`;
+    const best2=entries.slice().sort((a,b)=>(b[1].rate-a[1].rate)||(b[1].total-a[1].total)).slice(0,2).map(e=>e[0]);
+    const worst2=entries.slice().sort((a,b)=>(a[1].rate-b[1].rate)||(b[1].total-a[1].total)).slice(0,2).map(e=>e[0]);
+    bestMapsSet=new Set(best2); worstMapsSet=new Set(worst2);
+    const asc=entries.slice().sort((a,b)=>(a[1].total-b[1].total)||a[0].localeCompare(b[0]));
+    mapPlayChart.data.labels=asc.map(e=>e[0]);
+    mapPlayChart.data.datasets[0].data=asc.map(e=>e[1].total);
+    mapPlayChart.options.plugins.tooltip.callbacks.label=(ctx)=>{
+      const s=byMap.get(ctx.label);
+      return ` ${s.total} matches • ${s.wins}W-${s.losses}L • ${s.rate.toFixed(1)}%`;
+    };
+    mapPlayChart.update();
+  }
+
+  /* ——————————— COMPARISON ——————————— */
+  function setupComparisonControls(){
+    els.compareTeamA.addEventListener("change",()=>{ rebuildCompareMapOptions(); updateComparison(); });
+    els.compareTeamB.addEventListener("change",()=>{ rebuildCompareMapOptions(); updateComparison(); });
+    els.compareMapSelect.addEventListener("change",()=>updateComparison());
+    els.swapBtn.addEventListener("click",()=>{
+      const a=els.compareTeamA.value, b=els.compareTeamB.value;
+      els.compareTeamA.value=b; els.compareTeamB.value=a;
+      rebuildCompareMapOptions(); updateComparison();
+    });
+  }
+
+  function populateComparisonTeamOptions(matches){
+    const teams=new Set();
+    for(const m of matches){ teams.add(m.team1); teams.add(m.team2); }
+    const sorted=[...teams].sort((a,b)=>a.localeCompare(b));
+    const prevA=els.compareTeamA.value, prevB=els.compareTeamB.value;
+    els.compareTeamA.innerHTML=`<option value="">Select Team A</option>`;
+    els.compareTeamB.innerHTML=`<option value="">Select Team B</option>`;
+    sorted.forEach(t=>{
+      [els.compareTeamA,els.compareTeamB].forEach(sel=>{ const o=document.createElement("option"); o.value=t; o.textContent=t; sel.appendChild(o); });
+    });
+    if(prevA&&sorted.includes(prevA)) els.compareTeamA.value=prevA;
+    if(prevB&&sorted.includes(prevB)) els.compareTeamB.value=prevB;
+  }
+
+  function rebuildCompareMapOptions(){
+    const a=els.compareTeamA.value, b=els.compareTeamB.value;
+    els.compareMapSelect.innerHTML=`<option value="${GENERAL_MAP_VALUE}">General (all maps)</option>`;
+    if(!a||!b||a===b){ els.compareMapSelect.disabled=true; els.compareMapSelect.value=GENERAL_MAP_VALUE; return; }
+    const maps=new Set();
+    for(const m of allMatches) if(m.team1===a||m.team2===a||m.team1===b||m.team2===b) maps.add(m.map);
+    [...maps].sort((x,y)=>x.localeCompare(y)).forEach(mp=>{ const o=document.createElement("option"); o.value=mp; o.textContent=mp; els.compareMapSelect.appendChild(o); });
+    els.compareMapSelect.disabled=false;
+    if(![...els.compareMapSelect.options].some(o=>o.value===els.compareMapSelect.value)) els.compareMapSelect.value=GENERAL_MAP_VALUE;
+  }
+
+  function updateComparison(){
+    const a=els.compareTeamA.value, b=els.compareTeamB.value;
+    const mapValue=els.compareMapSelect.value||GENERAL_MAP_VALUE;
+    els.teamANameBadge.textContent=a||"Team A"; els.teamBNameBadge.textContent=b||"Team B";
+    els.probTeamABadge.textContent=a||"Team A"; els.probTeamBBadge.textContent=b||"Team B";
+    els.h2hHistoryScope.textContent=(mapValue&&mapValue!==GENERAL_MAP_VALUE)?`Scope: ${mapValue}`:"Scope: General";
+    if(!a||!b||a===b){
+      ["h2hMatchesBox","h2hAWinsBox","h2hBWinsBox","probABox","probBBox","mapRateABox","mapRateBBox"].forEach(k=>els[k].textContent="—");
+      els.probSourceBox.textContent="Source: —";
+      els.h2hHint.textContent="// select two different teams to see head-to-head";
+      setH2HBarData(0,0,a||"Team A",b||"Team B");
+      setProbDoughnut(50,50,a||"Team A",b||"Team B");
+      renderH2HHistory([]); return;
+    }
+    const sA=computeTeamStats(a,mapValue), sB=computeTeamStats(b,mapValue);
+    els.mapRateABox.textContent=sA.total>0?`${sA.rate.toFixed(1)}% (${sA.wins}W-${sA.losses}L)`:`0%`;
+    els.mapRateBBox.textContent=sB.total>0?`${sB.rate.toFixed(1)}% (${sB.wins}W-${sB.losses}L)`:`0%`;
+    const h2h=getHeadToHead(a,b,mapValue);
+    els.h2hMatchesBox.textContent=h2h.total; els.h2hAWinsBox.textContent=h2h.aWins; els.h2hBWinsBox.textContent=h2h.bWins;
+    setH2HBarData(h2h.aWins,h2h.bWins,a,b);
+    let pA=0.5,pB=0.5;
+    if(h2h.total>0){
+      const paRaw=(h2h.aWins+1)/(h2h.total+2), pbRaw=(h2h.bWins+1)/(h2h.total+2), sum=paRaw+pbRaw;
+      pA=sum>0?paRaw/sum:0.5; pB=1-pA;
+      els.probSourceBox.textContent=`Source: H2H (${mapValue===GENERAL_MAP_VALUE?"General":mapValue})`;
+      els.probDataHint.textContent=`H2H data: ${a} ${h2h.aWins}W — ${b} ${h2h.bWins}W — ${h2h.total} total`;
+    } else {
+      const pARaw=(sA.wins+1)/(sA.total+2), pBRaw=(sB.wins+1)/(sB.total+2), sum=pARaw+pBRaw;
+      pA=sum>0?pARaw/sum:0.5; pB=1-pA;
+      els.probSourceBox.textContent=`Source: Fallback map win rate`;
+      els.probDataHint.textContent=`No H2H found for this scope. Using each team's map record.`;
+    }
+    els.probABox.textContent=`${(pA*100).toFixed(1)}%`; els.probBBox.textContent=`${(pB*100).toFixed(1)}%`;
+    setProbDoughnut(pA*100,pB*100,a,b);
+    renderH2HHistory(getH2HHistory(a,b,5,mapValue));
+    els.h2hHint.textContent=h2h.total>0?`H2H: ${h2h.aWins}–${h2h.bWins} over ${h2h.total} matches`:`No H2H matches found for this scope.`;
+  }
+
+  function getHeadToHead(a,b,mapValue){
+    const mf=(mapValue&&mapValue!==GENERAL_MAP_VALUE)?mapValue:null;
+    let aWins=0,bWins=0,total=0;
+    for(const m of allMatches){
+      if(mf&&m.map!==mf) continue;
+      const isPair=(m.team1===a&&m.team2===b)||(m.team1===b&&m.team2===a);
+      if(!isPair) continue;
+      const winner=getWinnerTeamName(m);
+      if(winner===a) aWins++; else if(winner===b) bWins++;
+      if(winner===a||winner===b) total++;
+    }
+    return {aWins,bWins,total};
+  }
+
+  function getWinnerTeamName(match){
+    if(match.winnerSide==="Tie") return "Tie";
+    return match.winnerSide==="Team 1"?match.team1:match.team2;
+  }
+
+  function getH2HHistory(a,b,n,mapValue){
+    const mf=(mapValue&&mapValue!==GENERAL_MAP_VALUE)?mapValue:null;
+    const out=[];
+    for(let i=allMatches.length-1;i>=0&&out.length<n;i--){
+      const m=allMatches[i];
+      if(mf&&m.map!==mf) continue;
+      const isPair=(m.team1===a&&m.team2===b)||(m.team1===b&&m.team2===a);
+      if(!isPair) continue;
+      const winner=getWinnerTeamName(m);
+      out.push({
+        map:m.map, score:`${m.score1}×${m.score2}`, team1:m.team1, team2:m.team2,
+        winBadge:winner===a?"teamA":(winner===b?"teamB":"neutral"),
+        winText:winner===a?`Winner: ${a}`:(winner===b?`Winner: ${b}`:"Winner: Tie")
+      });
+    }
+    return out;
+  }
+
+  function renderH2HHistory(items){
+    els.h2hHistoryList.innerHTML="";
+    if(!items.length){
+      els.h2hHistoryList.innerHTML=`<div class="match-item"><div class="match-left"><div class="match-line1"><span class="badge neutral">NO H2H</span><span class="match-vs">no head-to-head for this scope</span></div></div></div>`;
+      return;
+    }
+    for(const it of items){
+      const row=document.createElement("div"); row.className="match-item";
+      row.innerHTML=`
+        <div class="match-left">
+          <div class="match-line1">
+            <span class="badge ${it.winBadge}">${escapeHtml(it.winText)}</span>
+            <span class="match-vs">${escapeHtml(it.team1)} vs ${escapeHtml(it.team2)}</span>
+          </div>
+          <div class="match-line2">
+            <span class="badge neutral">${escapeHtml(it.map)}</span>
+            <span class="badge neutral">${escapeHtml(it.score)}</span>
+          </div>
+        </div>
+        <div class="match-right">
+          <span class="badge neutral">${escapeHtml(it.score)}</span>
+        </div>`;
+      els.h2hHistoryList.appendChild(row);
+    }
+  }
+
+  function setH2HBarData(aWins,bWins,aName,bName){
+    h2hBarChart.data.labels=[aName,bName];
+    h2hBarChart.data.datasets[0].data=[aWins,bWins];
+    h2hBarChart.update();
+  }
+
+  function setProbDoughnut(aPct,bPct,aName,bName){
+    probDoughnut.data.labels=[aName,bName];
+    probDoughnut.data.datasets[0].data=[aPct,bPct];
+    probDoughnut.update();
+  }
+
+  /* ——————————— AI ANALYSIS ——————————— */
+  function setupAIModal(){
+    els.openAiModal.addEventListener("click",()=>{ els.aiModal.classList.add("open"); });
+    els.closeModal.addEventListener("click",()=>{ els.aiModal.classList.remove("open"); });
+    els.aiModal.addEventListener("click",e=>{ if(e.target===els.aiModal) els.aiModal.classList.remove("open"); });
+    els.runAiBtn.addEventListener("click",()=>runAIAnalysis());
+    document.addEventListener("keydown",e=>{ if(e.key==="Escape") els.aiModal.classList.remove("open"); });
+  }
+
+  function populateAITeamOptions(matches){
+    const teams=new Set();
+    for(const m of matches){ teams.add(m.team1); teams.add(m.team2); }
+    const sorted=[...teams].sort((a,b)=>a.localeCompare(b));
+    const prevA=els.aiTeamA.value, prevB=els.aiTeamB.value;
+    els.aiTeamA.innerHTML=`<option value="">Select Team A</option>`;
+    els.aiTeamB.innerHTML=`<option value="">Select Team B</option>`;
+    sorted.forEach(t=>{
+      [els.aiTeamA,els.aiTeamB].forEach(sel=>{ const o=document.createElement("option"); o.value=t; o.textContent=t; sel.appendChild(o); });
+    });
+    if(prevA&&sorted.includes(prevA)) els.aiTeamA.value=prevA;
+    if(prevB&&sorted.includes(prevB)) els.aiTeamB.value=prevB;
+    // populate AI map select
+    const maps=new Set();
+    for(const m of matches) maps.add(m.map);
+    const prevMap=els.aiMapSelect.value;
+    els.aiMapSelect.innerHTML=`<option value="__general__">General (all maps)</option>`;
+    [...maps].sort((a,b)=>a.localeCompare(b)).forEach(mp=>{
+      const o=document.createElement("option"); o.value=mp; o.textContent=mp; els.aiMapSelect.appendChild(o);
+    });
+    if(prevMap) els.aiMapSelect.value=prevMap;
+  }
+
+  function runAIAnalysis(){
+    const a=els.aiTeamA.value, b=els.aiTeamB.value, mapValue=els.aiMapSelect.value||GENERAL_MAP_VALUE;
+    if(!a||!b){ els.aiOutput.innerHTML=`<div class="ai-placeholder"><div class="ai-placeholder-icon">⚠</div><div class="ai-placeholder-text">Please select both teams before running analysis.</div></div>`; return; }
+    if(a===b){ els.aiOutput.innerHTML=`<div class="ai-placeholder"><div class="ai-placeholder-icon">⚠</div><div class="ai-placeholder-text">Teams must be different.</div></div>`; return; }
+
+    els.aiOutput.innerHTML=`<div class="ai-placeholder"><div class="ai-placeholder-icon">⚡</div><div class="ai-placeholder-text loading-dots">Computing analysis</div></div>`;
+
+    setTimeout(()=>{
+      try {
+        const report = generateAIReport(a, b, mapValue);
+        els.aiOutput.innerHTML = report;
+      } catch(e) {
+        els.aiOutput.innerHTML=`<div class="ai-placeholder"><div class="ai-placeholder-icon">✕</div><div class="ai-placeholder-text">Analysis failed: ${escapeHtml(e.message)}</div></div>`;
+      }
+    }, 600);
+  }
+
+  function generateAIReport(a, b, mapValue){
+    const mapLabel = mapValue===GENERAL_MAP_VALUE ? "All Maps" : mapValue;
+    const sA = computeTeamStats(a, mapValue);
+    const sB = computeTeamStats(b, mapValue);
+    const h2h = getHeadToHead(a, b, mapValue);
+
+    // Map breakdown for each team
+    const mapsA = getTeamMapBreakdown(a);
+    const mapsB = getTeamMapBreakdown(b);
+
+    // Form (last 5 matches general)
+    const formA = getLastMatches(a, 5, GENERAL_MAP_VALUE);
+    const formB = getLastMatches(b, 5, GENERAL_MAP_VALUE);
+    const formWinsA = formA.filter(m=>m.isWin).length;
+    const formWinsB = formB.filter(m=>m.isWin).length;
+
+    // Win probability
+    let pA=0.5, pB=0.5, probSource="";
+    if(h2h.total>0){
+      const paRaw=(h2h.aWins+1)/(h2h.total+2), pbRaw=(h2h.bWins+1)/(h2h.total+2), sum=paRaw+pbRaw;
+      pA=sum>0?paRaw/sum:0.5; pB=1-pA;
+      probSource=`H2H data (${h2h.total} matches)`;
+    } else {
+      const pARaw=(sA.wins+1)/(sA.total+2), pBRaw=(sB.wins+1)/(sB.total+2), sum=pARaw+pBRaw;
+      pA=sum>0?pARaw/sum:0.5; pB=1-pA;
+      probSource="fallback map win rate";
+    }
+
+    // Momentum analysis
+    const momentumA = formWinsA >= 4 ? "STRONG" : formWinsA >= 3 ? "POSITIVE" : formWinsA >= 2 ? "NEUTRAL" : "WEAK";
+    const momentumB = formWinsB >= 4 ? "STRONG" : formWinsB >= 3 ? "POSITIVE" : formWinsB >= 2 ? "NEUTRAL" : "WEAK";
+
+    // Determine favourite
+    const favTeam = pA > pB ? a : (pB > pA ? b : null);
+    const favPct = Math.max(pA, pB) * 100;
+    const isCloseMatch = Math.abs(pA - pB) < 0.08;
+
+    // Score pattern analysis
+    const scorePatternsA = analyzeScorePatterns(a);
+    const scorePatternsB = analyzeScorePatterns(b);
+
+    // H2H history items
+    const h2hHistory = getH2HHistory(a, b, 3, mapValue);
+
+    // Strengths & weaknesses
+    const strengths_A = getStrengthsAndWeaknesses(a, mapsA);
+    const strengths_B = getStrengthsAndWeaknesses(b, mapsB);
+
+    // Build sections
+    let html = `<div class="ai-report">`;
+
+    // Header verdict
+    html += `<div class="ai-section" style="border-color:rgba(136,68,255,0.3);background:linear-gradient(135deg,rgba(136,68,255,0.08),rgba(0,210,255,0.04))">
+      <div class="ai-section-title" style="color:#c0aaff">⚡ MATCH ANALYSIS REPORT</div>
+      <div style="line-height:1.7;margin-bottom:10px">
+        <b style="color:#fff">${escapeHtml(a)}</b> vs <b style="color:#fff">${escapeHtml(b)}</b>
+        &nbsp;•&nbsp; Scope: <span style="color:var(--cyan)">${escapeHtml(mapLabel)}</span>
+        &nbsp;•&nbsp; Probability source: <span style="color:var(--muted)">${escapeHtml(probSource)}</span>
+      </div>
+      <div class="ai-stat-row">
+        <span class="ai-stat-chip">${escapeHtml(a)}: ${sA.wins}W-${sA.losses}L (${sA.rate.toFixed(1)}%)</span>
+        <span class="ai-stat-chip">${escapeHtml(b)}: ${sB.wins}W-${sB.losses}L (${sB.rate.toFixed(1)}%)</span>
+        <span class="ai-stat-chip ${h2h.total>0?"green":""}">H2H: ${h2h.aWins}–${h2h.bWins} (${h2h.total} matches)</span>
+      </div>
+    </div>`;
+
+    // WIN PROBABILITY
+    const favColor = pA > pB ? "yellow" : "purple";
+    html += `<div class="ai-section">
+      <div class="ai-section-title">🎯 WIN PROBABILITY</div>
+      <div style="line-height:1.7">
+        ${isCloseMatch
+          ? `This matchup is <b style="color:var(--yellow)">extremely balanced</b> — either team could take it. Consider form and map as tiebreakers.`
+          : `<b style="color:${pA>pB?"var(--yellow)":"var(--teamB)"}">${escapeHtml(favTeam)}</b> is the statistical favourite at <b style="color:var(--cyan)">${favPct.toFixed(1)}%</b> probability.`
+        }
+      </div>
+      <div class="ai-stat-row" style="margin-top:10px">
+        <span class="ai-stat-chip yellow">${escapeHtml(a)}: ${(pA*100).toFixed(1)}%</span>
+        <span class="ai-stat-chip purple">${escapeHtml(b)}: ${(pB*100).toFixed(1)}%</span>
+      </div>
+    </div>`;
+
+    // FORM & MOMENTUM
+    html += `<div class="ai-section">
+      <div class="ai-section-title">📈 RECENT FORM (LAST 5)</div>
+      <div style="line-height:1.7">
+        <b style="color:var(--yellow)">${escapeHtml(a)}</b> — ${formWinsA}W/${5-formWinsA}L → Momentum: <span class="ai-stat-chip ${momentumA==="STRONG"?"green":momentumA==="WEAK"?"red":"yellow"}" style="display:inline;padding:2px 6px">${momentumA}</span><br>
+        <b style="color:var(--teamB)">${escapeHtml(b)}</b> — ${formWinsB}W/${5-formWinsB}L → Momentum: <span class="ai-stat-chip ${momentumB==="STRONG"?"green":momentumB==="WEAK"?"red":"yellow"}" style="display:inline;padding:2px 6px">${momentumB}</span>
+      </div>
+      ${formA.length>0?`<div class="ai-stat-row" style="margin-top:8px">
+        ${formA.slice(0,5).map(m=>`<span class="ai-stat-chip ${m.isWin?"green":"red"}">${m.isWin?"W":"L"}</span>`).join("")}
+        <span style="color:var(--muted);font-size:11px"> ← ${escapeHtml(a)}</span>
+      </div>`:""}
+      ${formB.length>0?`<div class="ai-stat-row" style="margin-top:4px">
+        ${formB.slice(0,5).map(m=>`<span class="ai-stat-chip ${m.isWin?"green":"red"}">${m.isWin?"W":"L"}</span>`).join("")}
+        <span style="color:var(--muted);font-size:11px"> ← ${escapeHtml(b)}</span>
+      </div>`:""}
+    </div>`;
+
+    // MAP STRENGTHS
+    if(mapsA.length>0||mapsB.length>0){
+      html += `<div class="ai-section">
+        <div class="ai-section-title">🗺 MAP STRENGTHS</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <div style="color:var(--yellow);font-size:11px;letter-spacing:1px;margin-bottom:6px">${escapeHtml(a)}</div>
+            ${strengths_A.best?`<div style="margin-bottom:4px">✅ Best: <b style="color:var(--green)">${escapeHtml(strengths_A.best.map)}</b> (${strengths_A.best.rate.toFixed(0)}% · ${strengths_A.best.total}g)</div>`:""}
+            ${strengths_A.worst?`<div>⚠ Worst: <b style="color:var(--red)">${escapeHtml(strengths_A.worst.map)}</b> (${strengths_A.worst.rate.toFixed(0)}% · ${strengths_A.worst.total}g)</div>`:""}
+          </div>
+          <div>
+            <div style="color:var(--teamB);font-size:11px;letter-spacing:1px;margin-bottom:6px">${escapeHtml(b)}</div>
+            ${strengths_B.best?`<div style="margin-bottom:4px">✅ Best: <b style="color:var(--green)">${escapeHtml(strengths_B.best.map)}</b> (${strengths_B.best.rate.toFixed(0)}% · ${strengths_B.best.total}g)</div>`:""}
+            ${strengths_B.worst?`<div>⚠ Worst: <b style="color:var(--red)">${escapeHtml(strengths_B.worst.map)}</b> (${strengths_B.worst.rate.toFixed(0)}% · ${strengths_B.worst.total}g)</div>`:""}
+          </div>
+        </div>
+        ${mapValue!==GENERAL_MAP_VALUE?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--stroke);font-size:12px">
+          On <b style="color:var(--cyan)">${escapeHtml(mapValue)}</b>:
+          ${escapeHtml(a)} ${sA.rate.toFixed(0)}% win rate (${sA.wins}W-${sA.losses}L) —
+          ${escapeHtml(b)} ${sB.rate.toFixed(0)}% win rate (${sB.wins}W-${sB.losses}L)
+        </div>`:""}
+      </div>`;
+    }
+
+    // SCORE PATTERNS
+    if(scorePatternsA.avgScore!==null||scorePatternsB.avgScore!==null){
+      html += `<div class="ai-section ai-section-purple">
+        <div class="ai-section-title">📊 SCORE PATTERNS</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;line-height:1.7">
+          <div>
+            <div style="color:var(--yellow);font-size:11px;letter-spacing:1px;margin-bottom:4px">${escapeHtml(a)}</div>
+            ${scorePatternsA.avgScore!==null?`Avg score when playing: <b>${scorePatternsA.avgScore.toFixed(1)}</b><br>`:""}
+            ${scorePatternsA.bigWins>0?`Dominant wins (7+ diff): <b style="color:var(--green)">${scorePatternsA.bigWins}</b><br>`:""}
+            ${scorePatternsA.closeGames>0?`Close games (2 or less diff): <b style="color:var(--yellow)">${scorePatternsA.closeGames}</b>`:""}
+          </div>
+          <div>
+            <div style="color:var(--teamB);font-size:11px;letter-spacing:1px;margin-bottom:4px">${escapeHtml(b)}</div>
+            ${scorePatternsB.avgScore!==null?`Avg score when playing: <b>${scorePatternsB.avgScore.toFixed(1)}</b><br>`:""}
+            ${scorePatternsB.bigWins>0?`Dominant wins (7+ diff): <b style="color:var(--green)">${scorePatternsB.bigWins}</b><br>`:""}
+            ${scorePatternsB.closeGames>0?`Close games (2 or less diff): <b style="color:var(--yellow)">${scorePatternsB.closeGames}</b>`:""}
+          </div>
+        </div>
+      </div>`;
+    }
+
+    // H2H HISTORY (if available)
+    if(h2hHistory.length>0){
+      html += `<div class="ai-section">
+        <div class="ai-section-title">🔄 RECENT H2H (${escapeHtml(mapLabel)})</div>
+        ${h2hHistory.map(it=>`
+          <div style="margin:4px 0;font-size:12px">
+            <span class="ai-stat-chip ${it.winBadge==="teamA"?"yellow":"purple"}">${escapeHtml(it.winText)}</span>
+            ${escapeHtml(it.map)} — ${escapeHtml(it.score)}
+          </div>`).join("")}
+      </div>`;
+    }
+
+    // INTEL SUMMARY
+    const sampleSize = h2h.total > 0 ? h2h.total : Math.min(sA.total, sB.total);
+    const confidence = sampleSize >= 10 ? "HIGH" : sampleSize >= 5 ? "MEDIUM" : sampleSize >= 2 ? "LOW" : "VERY LOW";
+    const confColor = confidence==="HIGH"?"green":confidence==="MEDIUM"?"yellow":confidence==="LOW"?"red":"red";
+
+    html += `<div class="ai-verdict">
+      <div style="font-family:var(--head);font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#c0aaff;margin-bottom:8px">⚡ INTEL SUMMARY</div>
+      <div style="line-height:1.8;font-size:12px">
+        ${favTeam
+          ? `Statistical edge: <b style="color:${pA>pB?"var(--yellow)":"var(--teamB)"}">${escapeHtml(favTeam)}</b> at ${favPct.toFixed(1)}%.`
+          : "This is a perfectly balanced matchup statistically."
+        }
+        ${formWinsA > formWinsB
+          ? ` ${escapeHtml(a)} is in better recent form (${formWinsA}W vs ${formWinsB}W in last 5).`
+          : formWinsB > formWinsA
+          ? ` ${escapeHtml(b)} is in better recent form (${formWinsB}W vs ${formWinsA}W in last 5).`
+          : " Both teams show comparable recent form."
+        }
+        ${mapValue!==GENERAL_MAP_VALUE&&sA.total>0&&sB.total>0
+          ? ` On ${escapeHtml(mapValue)}: ${escapeHtml(a)} ${sA.rate.toFixed(0)}% vs ${escapeHtml(b)} ${sB.rate.toFixed(0)}%.`
+          : ""
+        }
+      </div>
+      <div class="ai-stat-row" style="margin-top:10px">
+        <span class="ai-stat-chip ${confColor}">Confidence: ${confidence}</span>
+        <span class="ai-stat-chip">Data: ${sampleSize} matches</span>
+        <span class="ai-stat-chip">${allMatches.length} total records</span>
+      </div>
+    </div>`;
+
+    html += `</div>`;
+    return html;
+  }
+
+  function getTeamMapBreakdown(team){
+    const byMap=new Map();
+    for(const m of allMatches){
+      const as1=m.team1===team, as2=m.team2===team;
+      if(!as1&&!as2) continue;
+      if(!byMap.has(m.map)) byMap.set(m.map,{wins:0,losses:0,total:0,rate:0});
+      const s=byMap.get(m.map);
+      const win=(as1&&m.winnerSide==="Team 1")||(as2&&m.winnerSide==="Team 2");
+      if(win) s.wins++; else s.losses++;
+      s.total++;
+    }
+    for(const s of byMap.values()) s.rate=s.total>0?(s.wins/s.total)*100:0;
+    return [...byMap.entries()].map(([map,s])=>({map,...s}));
+  }
+
+  function getStrengthsAndWeaknesses(team, breakdown){
+    if(!breakdown.length) return {best:null,worst:null};
+    const withGames=breakdown.filter(m=>m.total>=1);
+    if(!withGames.length) return {best:null,worst:null};
+    const sorted=withGames.slice().sort((a,b)=>(b.rate-a.rate)||(b.total-a.total));
+    return {best:sorted[0], worst:sorted[sorted.length-1]};
+  }
+
+  function analyzeScorePatterns(team){
+    let totalScoreSum=0, count=0, bigWins=0, closeGames=0;
+    for(const m of allMatches){
+      const as1=m.team1===team, as2=m.team2===team;
+      if(!as1&&!as2) continue;
+      const myScore=as1?m.score1:m.score2;
+      const diff=Math.abs(m.score1-m.score2);
+      totalScoreSum+=myScore; count++;
+      if(diff>=7) bigWins++;
+      if(diff<=2) closeGames++;
+    }
+    return {avgScore:count>0?totalScoreSum/count:null, bigWins, closeGames, count};
+  }
+
+  /* ——————————— CHARTS ——————————— */
+  function buildCharts(){
+    const chartDefaults = {
+      color: "rgba(220,240,255,0.7)",
+      gridColor: "rgba(0,210,255,0.06)",
+    };
+
+    wlChart = new Chart(els.wlCanvas.getContext("2d"),{
+      type:"bar",
+      data:{labels:["Wins","Losses"],datasets:[{
+        label:"Matches",data:[0,0],
+        backgroundColor:["rgba(0,255,136,0.3)","rgba(255,51,85,0.3)"],
+        borderColor:["rgba(0,255,136,0.8)","rgba(255,51,85,0.8)"],
+        borderWidth:1,borderRadius:4,maxBarThickness:70
+      }]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{
+          x:{ticks:{color:chartDefaults.color,font:{family:"'Share Tech Mono'",size:11}},grid:{color:chartDefaults.gridColor}},
+          y:{beginAtZero:true,ticks:{color:chartDefaults.color,font:{family:"'Share Tech Mono'",size:11}},grid:{color:chartDefaults.gridColor}}
+        }}
+    });
+
+    mapPlayChart = new Chart(els.mapPlayCanvas.getContext("2d"),{
+      type:"bar",
+      data:{labels:[],datasets:[{
+        label:"Matches",data:[],
+        backgroundColor:"rgba(0,210,255,0.2)",
+        borderColor:"rgba(0,210,255,0.7)",
+        borderWidth:1,borderRadius:4
+      }]},
+      options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:(ctx)=>` ${ctx.raw} matches`}}},
+        scales:{
+          x:{beginAtZero:true,ticks:{color:chartDefaults.color,font:{family:"'Share Tech Mono'",size:11}},grid:{color:chartDefaults.gridColor}},
+          y:{ticks:{color:(ctx)=>{
+            const label=ctx&&ctx.tick?String(ctx.tick.label):"";
+            if(bestMapsSet&&bestMapsSet.has(label)) return MAP_LABEL_BEST;
+            if(worstMapsSet&&worstMapsSet.has(label)) return MAP_LABEL_WORST;
+            return MAP_LABEL_DEF;
+          },font:{family:"'Share Tech Mono'",size:11}},grid:{color:"transparent"}}
+        }}
+    });
+
+    h2hBarChart = new Chart(els.h2hBarCanvas.getContext("2d"),{
+      type:"bar",
+      data:{labels:["Team A","Team B"],datasets:[{
+        label:"H2H Wins",data:[0,0],
+        backgroundColor:["rgba(255,215,0,0.3)","rgba(0,170,255,0.3)"],
+        borderColor:["rgba(255,215,0,0.8)","rgba(0,170,255,0.8)"],
+        borderWidth:1,borderRadius:4,maxBarThickness:70
+      }]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{
+          x:{ticks:{color:chartDefaults.color,font:{family:"'Share Tech Mono'",size:11}},grid:{color:chartDefaults.gridColor}},
+          y:{beginAtZero:true,ticks:{color:chartDefaults.color,font:{family:"'Share Tech Mono'",size:11}},grid:{color:chartDefaults.gridColor}}
+        }}
+    });
+
+    probDoughnut = new Chart(els.probCanvas.getContext("2d"),{
+      type:"doughnut",
+      data:{labels:["Team A","Team B"],datasets:[{
+        data:[50,50],
+        backgroundColor:["rgba(255,215,0,0.35)","rgba(0,170,255,0.35)"],
+        borderColor:["rgba(255,215,0,0.8)","rgba(0,170,255,0.8)"],
+        borderWidth:1
+      }]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{
+          legend:{labels:{color:chartDefaults.color,font:{family:"'Share Tech Mono'",size:11}}},
+          tooltip:{callbacks:{label:(ctx)=>` ${ctx.label}: ${ctx.raw.toFixed(1)}%`}}
+        }}
+    });
+  }
+
+  /* ——————————— EXCEL LOADING ——————————— */
+  async function loadExcelMatches(path, forceReload){
+    const url = forceReload ? `${path}?v=${Date.now()}` : path;
+    const res = await fetch(url,{cache:"no-store"});
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf,{type:"array"});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    if(!ws) throw new Error("No sheets found");
+    const rows = XLSX.utils.sheet_to_json(ws,{defval:""});
+    return rows.filter(r=>r["Team 1"]||r["Team 2"]||r["Map"]||r["Result"]).map(normalizeRow).filter(Boolean);
+  }
+
+  function normalizeDateAny(v){
+    if(v===null||v===undefined||v==="") return {display:"",iso:"",year:null,month:null};
+    if(v instanceof Date&&!isNaN(v)) return dateObjToParts(v);
+    if(typeof v==="number"&&Number.isFinite(v)){
+      if(XLSX&&XLSX.SSF&&typeof XLSX.SSF.parse_date_code==="function"){
+        const d=XLSX.SSF.parse_date_code(v);
+        if(d&&d.y&&d.m&&d.d) return dateObjToPartsUTC(new Date(Date.UTC(d.y,d.m-1,d.d)));
+      }
+      return parseDateString(String(v).trim());
+    }
+    return parseDateString(String(v).trim());
+  }
+
+  function dateObjToParts(date){
+    const dd=String(date.getDate()).padStart(2,"0"), mm=String(date.getMonth()+1).padStart(2,"0"), yy=String(date.getFullYear());
+    return {display:`${dd}/${mm}/${yy}`,iso:`${yy}-${mm}-${dd}`,year:Number(yy),month:Number(mm)};
+  }
+  function dateObjToPartsUTC(date){
+    const dd=String(date.getUTCDate()).padStart(2,"0"), mm=String(date.getUTCMonth()+1).padStart(2,"0"), yy=String(date.getUTCFullYear());
+    return {display:`${dd}/${mm}/${yy}`,iso:`${yy}-${mm}-${dd}`,year:Number(yy),month:Number(mm)};
+  }
+
+  function parseDateString(s){
+    if(!s) return {display:"",iso:"",year:null,month:null};
+    let m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(m) return {display:`${m[3]}/${m[2]}/${m[1]}`,iso:`${m[1]}-${m[2]}-${m[3]}`,year:Number(m[1]),month:Number(m[2])};
+    m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if(m){
+      const dd=m[1].padStart(2,"0"), mm=m[2].padStart(2,"0"), yy=m[3];
+      return {display:`${dd}/${mm}/${yy}`,iso:`${yy}-${mm}-${dd}`,year:Number(yy),month:Number(mm)};
+    }
+    return {display:s,iso:"",year:null,month:null};
+  }
+
+  function normalizeRow(r){
+    const team1=String(r["Team 1"]??"").trim(), team2=String(r["Team 2"]??"").trim();
+    const map=String(r["Map"]??"").trim(), resultRaw=String(r["Result"]??"").trim();
+    const event=String(r["Event"]??"").trim();
+    const d=normalizeDateAny(r["Date"]);
+    const {s1,s2}=parseResult(resultRaw);
+    if(!team1||!team2||!map||s1===null||s2===null) return null;
+    let winnerSide="Team 1";
+    if(s2>s1) winnerSide="Team 2"; else if(s1===s2) winnerSide="Tie";
+    return {team1,team2,map,score1:s1,score2:s2,winnerSide,winner:winnerSide==="Team 1"?team1:winnerSide==="Team 2"?team2:"Tie",resultRaw,event,date:d.display,dateISO:d.iso,dateYear:d.year,dateMonth:d.month};
+  }
+
+  function parseResult(text){
+    const m=String(text).replace(/\s+/g,"").match(/^(\d+)x(\d+)$/i);
+    return m?{s1:Number(m[1]),s2:Number(m[2])}:{s1:null,s2:null};
+  }
+
+  function escapeHtml(str){
+    return String(str).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,1885 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NEXUS RANKING — Command Center</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<style>
+:root {
+  --bg-deep: #040608;
+  --bg-base: #070B10;
+  --bg-panel: rgba(8,14,22,0.92);
+  --bg-card: rgba(10,18,28,0.88);
+  --bg-glass: rgba(20,35,55,0.45);
+  --border: rgba(0,200,180,0.18);
+  --border-bright: rgba(0,200,180,0.45);
+  --border-dim: rgba(0,200,180,0.08);
+  --cyan: #00E5CC;
+  --cyan-dim: rgba(0,229,204,0.6);
+  --cyan-glow: rgba(0,229,204,0.15);
+  --orange: #FF6B2B;
+  --orange-dim: rgba(255,107,43,0.6);
+  --red: #FF3366;
+  --gold: #FFB800;
+  --green: #00E87D;
+  --purple: #8B5CF6;
+  --text: #C8D8E8;
+  --text-bright: #EAF4FF;
+  --text-dim: #5A7090;
+  --text-muted: #3A5070;
+  --mono: 'Share Tech Mono', 'Courier New', monospace;
+  --head: 'Rajdhani', sans-serif;
+  --body: 'Barlow Condensed', sans-serif;
+  --radius: 4px;
+  --radius-lg: 8px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--body);
+  font-size: 15px;
+  color: var(--text);
+  background: var(--bg-deep);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── ANIMATED BACKGROUND ─── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 1200px 600px at 15% -10%, rgba(0,229,204,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 800px 800px at 85% 110%, rgba(255,107,43,0.05) 0%, transparent 55%),
+    radial-gradient(ellipse 600px 400px at 50% 50%, rgba(139,92,246,0.04) 0%, transparent 50%),
+    linear-gradient(180deg, #070B10 0%, #040608 100%);
+  z-index: -2;
+  pointer-events: none;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,229,204,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,204,0.025) 1px, transparent 1px);
+  background-size: 60px 60px;
+  z-index: -1;
+  pointer-events: none;
+  mask-image: radial-gradient(ellipse 120% 120% at 50% 0%, black 30%, transparent 80%);
+}
+
+/* ─── SCANLINE EFFECT ─── */
+.scanline-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.04) 2px,
+    rgba(0,0,0,0.04) 4px
+  );
+  mix-blend-mode: multiply;
+}
+
+/* ─── CORNER DECORATIONS ─── */
+.corner-tl, .corner-tr, .corner-bl, .corner-br {
+  position: fixed;
+  width: 80px;
+  height: 80px;
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0.4;
+}
+.corner-tl { top: 0; left: 0; border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+.corner-tr { top: 0; right: 0; border-top: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
+.corner-bl { bottom: 0; left: 0; border-bottom: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+.corner-br { bottom: 0; right: 0; border-bottom: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
+
+/* ─── LAYOUT ─── */
+.wrapper { max-width: 1440px; margin: 0 auto; padding: 24px 24px 48px; }
+
+/* ─── TOP BAR ─── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 6px;
+  padding: 14px 20px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-bottom: 1px solid rgba(0,229,204,0.3);
+  position: relative;
+  overflow: hidden;
+}
+.topbar::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), rgba(255,107,43,0.8), var(--cyan), transparent);
+  opacity: 0.6;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.nexus-logo {
+  font-family: var(--head);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--text-bright);
+  line-height: 1;
+  position: relative;
+}
+.nexus-logo span {
+  color: var(--cyan);
+  text-shadow: 0 0 20px var(--cyan), 0 0 40px rgba(0,229,204,0.4);
+}
+.nexus-logo::after {
+  content: 'RANKING SYSTEM v2.0';
+  display: block;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  margin-top: 2px;
+  font-weight: 400;
+}
+
+.status-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ─── ALERTS ─── */
+#alerts { min-height: 42px; margin: 8px 0 12px; }
+.alert-msg {
+  padding: 10px 16px;
+  border-left: 3px solid var(--cyan);
+  background: rgba(0,229,204,0.06);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: slide-in 0.2s ease;
+}
+.alert-msg::before { content: '▸'; color: var(--cyan); }
+.alert-msg.warn { border-color: var(--gold); background: rgba(255,184,0,0.06); }
+.alert-msg.warn::before { color: var(--gold); }
+.alert-msg.bad { border-color: var(--red); background: rgba(255,51,102,0.06); }
+.alert-msg.bad::before { color: var(--red); }
+.alert-msg.good { border-color: var(--green); background: rgba(0,232,125,0.06); }
+.alert-msg.good::before { color: var(--green); }
+@keyframes slide-in { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+
+/* ─── MAIN GRID ─── */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1100px) { .main-grid { grid-template-columns: 1fr; } }
+
+/* ─── PANELS ─── */
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0.4;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-dim);
+  background: rgba(0,229,204,0.02);
+}
+
+.panel-title {
+  font-family: var(--head);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-bright);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.panel-title .icon {
+  width: 20px; height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,229,204,0.1);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--cyan);
+}
+
+.panel-body { padding: 16px; }
+
+/* ─── TAGS / CHIPS ─── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(0,229,204,0.06);
+  border: 1px solid var(--border-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+
+/* ─── BUTTONS ─── */
+.btn {
+  font-family: var(--head);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 9px 16px;
+  border: 1px solid var(--border);
+  background: rgba(0,229,204,0.04);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0,229,204,0.08);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.btn:hover { border-color: var(--border-bright); color: var(--cyan); }
+.btn:hover::after { opacity: 1; }
+.btn:active { transform: scale(0.98); }
+.btn[disabled] { opacity: 0.35; cursor: not-allowed; }
+
+.btn-cyan {
+  border-color: rgba(0,229,204,0.5);
+  background: rgba(0,229,204,0.1);
+  color: var(--cyan);
+  text-shadow: 0 0 12px rgba(0,229,204,0.5);
+}
+.btn-cyan:hover { background: rgba(0,229,204,0.2); box-shadow: 0 0 20px rgba(0,229,204,0.15); }
+
+.btn-orange {
+  border-color: rgba(255,107,43,0.5);
+  background: rgba(255,107,43,0.1);
+  color: var(--orange);
+}
+.btn-orange:hover { background: rgba(255,107,43,0.2); }
+
+.btn-red {
+  border-color: rgba(255,51,102,0.5);
+  background: rgba(255,51,102,0.1);
+  color: var(--red);
+}
+.btn-red:hover { background: rgba(255,51,102,0.2); }
+
+.btn-green {
+  border-color: rgba(0,232,125,0.5);
+  background: rgba(0,232,125,0.1);
+  color: var(--green);
+}
+.btn-green:hover { background: rgba(0,232,125,0.2); }
+
+.btn-purple {
+  border-color: rgba(139,92,246,0.5);
+  background: rgba(139,92,246,0.1);
+  color: var(--purple);
+}
+.btn-purple:hover { background: rgba(139,92,246,0.2); }
+
+.btn-gold {
+  border-color: rgba(255,184,0,0.5);
+  background: rgba(255,184,0,0.08);
+  color: var(--gold);
+}
+.btn-gold:hover { background: rgba(255,184,0,0.18); }
+
+.btn-full { width: 100%; }
+
+/* ─── INPUTS ─── */
+.field { margin-bottom: 12px; }
+.field-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+input.inp, select.inp, textarea.inp {
+  width: 100%;
+  padding: 9px 12px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+  appearance: none;
+  -webkit-appearance: none;
+}
+input.inp:focus, select.inp:focus, textarea.inp:focus {
+  border-color: var(--border-bright);
+  box-shadow: 0 0 0 3px rgba(0,229,204,0.06);
+}
+select.inp option { background: #0A1422; color: var(--text); }
+input[type="file"].inp {
+  font-size: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+/* ─── TWO COL ─── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 500px) { .two-col { grid-template-columns: 1fr; } }
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+@media (max-width: 500px) { .three-col { grid-template-columns: 1fr; } }
+
+/* ─── DIVIDER ─── */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  margin: 14px 0;
+}
+
+/* ─── STATS BAR ─── */
+.stats-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border-dim);
+  margin-bottom: 12px;
+  border: 1px solid var(--border-dim);
+}
+.stat-cell {
+  background: var(--bg-card);
+  padding: 12px 14px;
+  text-align: center;
+}
+.stat-cell .stat-val {
+  font-family: var(--mono);
+  font-size: 20px;
+  color: var(--cyan);
+  display: block;
+  line-height: 1;
+  text-shadow: 0 0 16px rgba(0,229,204,0.4);
+}
+.stat-cell .stat-key {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+/* ─── TABLE ─── */
+.table-scroll {
+  max-height: 520px;
+  overflow: auto;
+  border: 1px solid var(--border-dim);
+}
+.table-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+.table-scroll::-webkit-scrollbar-track { background: transparent; }
+.table-scroll::-webkit-scrollbar-thumb { background: var(--border); }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+thead th {
+  position: sticky; top: 0;
+  background: rgba(4,6,8,0.98);
+  border-bottom: 1px solid rgba(0,229,204,0.25);
+  padding: 10px 12px;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  z-index: 2;
+  white-space: nowrap;
+}
+thead th::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan-dim), transparent);
+  opacity: 0.3;
+}
+thead th { position: sticky; top: 0; }
+tbody tr {
+  border-bottom: 1px solid rgba(0,229,204,0.04);
+  transition: background 0.1s;
+}
+tbody tr:hover { background: rgba(0,229,204,0.03); }
+tbody td { padding: 9px 12px; white-space: nowrap; }
+.num { text-align: right; font-family: var(--mono); }
+
+/* ─── TIER BADGES ─── */
+.tier-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  border: 1px solid;
+}
+.tier-S { color: #C77DFF; border-color: rgba(199,125,255,0.45); background: rgba(199,125,255,0.08); }
+.tier-1 { color: var(--cyan); border-color: rgba(0,229,204,0.45); background: rgba(0,229,204,0.07); }
+.tier-2 { color: var(--green); border-color: rgba(0,232,125,0.4); background: rgba(0,232,125,0.06); }
+.tier-3 { color: var(--text-dim); border-color: rgba(90,112,144,0.35); background: rgba(90,112,144,0.06); }
+
+/* ─── RANK NUMBER ─── */
+.rank-num {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.rank-1 { color: var(--gold); text-shadow: 0 0 10px rgba(255,184,0,0.5); }
+.rank-2 { color: #B8C4D0; }
+.rank-3 { color: #CD7F32; }
+
+/* ─── POINTS BAR ─── */
+.pts-bar-wrap { display: flex; align-items: center; gap: 8px; }
+.pts-bar {
+  flex: 1;
+  height: 3px;
+  background: rgba(255,255,255,0.06);
+  position: relative;
+  min-width: 60px;
+}
+.pts-bar-fill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  background: linear-gradient(90deg, var(--cyan), rgba(0,229,204,0.4));
+  transition: width 0.4s ease;
+}
+
+/* ─── BONUS BADGE ─── */
+.bonus-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  border: 1px solid rgba(255,184,0,0.35);
+  background: rgba(255,184,0,0.08);
+  color: var(--gold);
+}
+.no-bonus { color: var(--text-muted); font-family: var(--mono); font-size: 11px; }
+
+/* ─── STREAK INDICATOR ─── */
+.streak-pos { color: var(--green); font-family: var(--mono); }
+.streak-neg { color: var(--red); font-family: var(--mono); }
+.streak-zero { color: var(--text-dim); font-family: var(--mono); }
+
+/* ─── VERSUS RESULT BOX ─── */
+#versusBox {
+  margin-top: 12px;
+  padding: 14px;
+  background: rgba(0,229,204,0.03);
+  border: 1px solid rgba(0,229,204,0.15);
+  display: none;
+}
+.versus-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+.vs-outcome {
+  padding: 10px 12px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border-dim);
+}
+.vs-outcome-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.vs-delta {
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.vs-delta .pos { color: var(--green); }
+.vs-delta .neg { color: var(--red); }
+.vs-info-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.vs-info-row span { color: var(--text); }
+
+/* ─── RECENT MATCHES ─── */
+.section-gap { margin-top: 16px; }
+.matches-table-wrap {
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--border-dim);
+}
+
+/* ─── RESET PREVIEW ─── */
+#resetPreview {
+  margin-top: 12px;
+  padding: 14px;
+  background: rgba(255,184,0,0.04);
+  border: 1px solid rgba(255,184,0,0.2);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.8;
+  display: none;
+}
+#resetPreview .rv { color: var(--gold); }
+
+/* ─── AI ANALYSIS PANEL ─── */
+#aiModal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(2,4,8,0.92);
+  backdrop-filter: blur(6px);
+  overflow: auto;
+}
+.ai-modal-inner {
+  max-width: 920px;
+  margin: 40px auto;
+  padding: 0 24px 48px;
+}
+.ai-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-bottom: 1px solid rgba(139,92,246,0.4);
+  margin-bottom: 16px;
+  position: relative;
+}
+.ai-modal-header::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--purple), transparent);
+}
+.ai-modal-title {
+  font-family: var(--head);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-bright);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ai-modal-title .ai-icon {
+  width: 32px; height: 32px;
+  background: rgba(139,92,246,0.15);
+  border: 1px solid rgba(139,92,246,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  color: var(--purple);
+}
+
+#aiContent { padding: 0; }
+
+.ai-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.ai-section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-dim);
+  font-family: var(--head);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--purple);
+}
+.ai-section-head::before {
+  content: '';
+  width: 3px; height: 16px;
+  background: var(--purple);
+  flex-shrink: 0;
+}
+.ai-section-body { padding: 14px 16px; }
+
+.ai-insight {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: rgba(0,0,0,0.25);
+  border-left: 2px solid var(--border);
+}
+.ai-insight:last-child { margin-bottom: 0; }
+.ai-insight.hot { border-left-color: var(--orange); }
+.ai-insight.warn { border-left-color: var(--gold); }
+.ai-insight.good { border-left-color: var(--green); }
+.ai-insight.info { border-left-color: var(--cyan); }
+.ai-insight.danger { border-left-color: var(--red); }
+
+.ai-insight-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.ai-insight-text { font-size: 13px; line-height: 1.6; color: var(--text); }
+.ai-insight-text strong { color: var(--text-bright); }
+.ai-insight-text .tag {
+  display: inline;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--cyan);
+  background: rgba(0,229,204,0.08);
+  padding: 1px 6px;
+  border: 1px solid var(--border-dim);
+}
+
+/* Team cards in AI */
+.ai-team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+.ai-team-card {
+  padding: 12px 14px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border-dim);
+  transition: border-color 0.15s;
+}
+.ai-team-card:hover { border-color: var(--border-bright); }
+.ai-team-card .atc-name {
+  font-family: var(--head);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--text-bright);
+  margin-bottom: 8px;
+}
+.ai-team-card .atc-pts {
+  font-family: var(--mono);
+  font-size: 18px;
+  color: var(--cyan);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.ai-team-card .atc-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+.atc-bar {
+  height: 2px;
+  background: rgba(255,255,255,0.06);
+  margin: 8px 0;
+}
+.atc-bar-fill {
+  height: 2px;
+  background: linear-gradient(90deg, var(--purple), var(--cyan));
+}
+.atc-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px solid;
+  margin-top: 8px;
+}
+.rating-S { color: #C77DFF; border-color: rgba(199,125,255,0.4); background: rgba(199,125,255,0.06); }
+.rating-A { color: var(--cyan); border-color: rgba(0,229,204,0.4); background: rgba(0,229,204,0.06); }
+.rating-B { color: var(--green); border-color: rgba(0,232,125,0.35); background: rgba(0,232,125,0.05); }
+.rating-C { color: var(--gold); border-color: rgba(255,184,0,0.35); background: rgba(255,184,0,0.05); }
+.rating-D { color: var(--text-dim); border-color: rgba(90,112,144,0.3); background: rgba(90,112,144,0.04); }
+
+/* mini bar chart */
+.mini-bar-chart { display: flex; flex-direction: column; gap: 4px; }
+.mbc-row { display: flex; align-items: center; gap: 8px; }
+.mbc-label { font-family: var(--mono); font-size: 11px; color: var(--text-dim); min-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mbc-track { flex: 1; height: 14px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-dim); position: relative; }
+.mbc-fill { position: absolute; top: 0; left: 0; height: 100%; transition: width 0.5s ease; }
+.mbc-val { font-family: var(--mono); font-size: 11px; color: var(--text); min-width: 55px; text-align: right; }
+
+/* ─── SIDEBAR STACK ─── */
+.sidebar-stack > .panel { margin-bottom: 14px; }
+.sidebar-stack > .panel:last-child { margin-bottom: 0; }
+
+/* ─── FORM SEPARATOR ─── */
+.form-sep {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 10px;
+}
+.form-sep::before, .form-sep::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-dim);
+}
+
+/* ─── COMPACT ACTION ROW ─── */
+.action-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ─── SCROLL HINT ─── */
+.scroll-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  letter-spacing: 1px;
+}
+
+/* ─── TEAM NAME ─── */
+.team-name { font-weight: 600; color: var(--text-bright); letter-spacing: 0.3px; }
+
+/* ─── MINOR ─── */
+.note {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin-top: 8px;
+}
+.note a { color: var(--cyan); text-decoration: none; }
+
+/* file input styling */
+input[type="file"] { cursor: pointer; }
+
+/* ─── LOADING SPINNER ─── */
+.spin {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border: 2px solid var(--border);
+  border-top-color: var(--cyan);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── SLIDE ANIMATIONS ─── */
+.panel { animation: fadeUp 0.3s ease both; }
+.panel:nth-child(2) { animation-delay: 0.05s; }
+.panel:nth-child(3) { animation-delay: 0.1s; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* scrollbar global */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-bright); }
+
+/* ─── FILE LOAD SECTION IN HEADER ─── */
+.file-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- UI accents -->
+<div class="scanline-overlay"></div>
+<div class="corner-tl"></div>
+<div class="corner-tr"></div>
+<div class="corner-bl"></div>
+<div class="corner-br"></div>
+
+<div class="wrapper">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="nexus-logo">NEXUS <span>RANKING</span></div>
+      <div>
+        <div class="status-line">
+          <div class="status-dot"></div>
+          <span>SYSTEM ONLINE</span>
+          <span style="color:var(--border)">|</span>
+          <span id="excelUrlLabel" style="color:var(--text-dim)">file/ranking.xlsx</span>
+        </div>
+        <div class="status-line" style="margin-top:3px; color:var(--text-muted)">
+          Elo + Dynamic-K + Streak + Tourney Bonus + Season Prestige
+        </div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <input class="inp" style="width:220px;font-size:11px;padding:7px 10px;" id="fileInput" type="file" accept=".xlsx" title="Manual load" />
+      <button class="btn" id="btnReload">⟳ Reload</button>
+      <button class="btn btn-purple" id="btnAI">◈ Analysis</button>
+      <button class="btn btn-cyan" id="btnDownload">↓ Export Excel</button>
+      <button class="btn" id="btnBackToMenu">← Menu</button>
+    </div>
+  </div>
+
+  <!-- ALERTS -->
+  <div id="alerts"></div>
+
+  <!-- STATS BAR -->
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-cell"><span class="stat-val" id="st-teams">—</span><div class="stat-key">Teams</div></div>
+    <div class="stat-cell"><span class="stat-val" id="st-avg">—</span><div class="stat-key">Avg Points</div></div>
+    <div class="stat-cell"><span class="stat-val" id="st-top">—</span><div class="stat-key">Top Score</div></div>
+    <div class="stat-cell"><span class="stat-val" id="st-active">—</span><div class="stat-key">Active Bonuses</div></div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="main-grid">
+
+    <!-- LEFT: STANDINGS + RECENT -->
+    <div>
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-head">
+          <div class="panel-title">
+            <div class="icon">◈</div>
+            Current Standings
+          </div>
+          <div class="action-row">
+            <span class="chip">📊 Live session data</span>
+          </div>
+        </div>
+        <div class="panel-body" style="padding:0;">
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:36px;">#</th>
+                  <th>Team</th>
+                  <th class="num">Points</th>
+                  <th class="num">W</th>
+                  <th class="num">L</th>
+                  <th class="num">Streak</th>
+                  <th class="num">Majors</th>
+                  <th class="num">Trophies</th>
+                  <th class="num">Prestige</th>
+                  <th>Tier</th>
+                  <th>Region</th>
+                  <th>Bonus</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody">
+                <tr><td colspan="12" style="color:var(--text-muted);font-family:var(--mono);font-size:12px;padding:20px;text-align:center;">Loading data from file/ranking.xlsx…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- RECENT MATCHES -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">
+            <div class="icon">▸</div>
+            Recent Matches
+          </div>
+          <span class="chip">⚡ Session-only · not saved</span>
+        </div>
+        <div class="panel-body" style="padding:0;">
+          <div class="matches-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Match</th>
+                  <th>Winner</th>
+                  <th class="num">ΔA</th>
+                  <th class="num">ΔB</th>
+                  <th class="num"></th>
+                </tr>
+              </thead>
+              <tbody id="recentMatchesBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div style="padding:10px 16px;">
+          <div class="note">Session log is cleared on page reload. Download Excel to persist changes.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: CONTROLS -->
+    <div class="sidebar-stack">
+
+      <!-- VERSUS -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title"><div class="icon">⚔</div> Versus</div>
+          <span class="chip">Elo Engine</span>
+        </div>
+        <div class="panel-body">
+          <div class="two-col">
+            <div class="field">
+              <label class="field-label">Team A</label>
+              <select class="inp" id="teamA"></select>
+            </div>
+            <div class="field">
+              <label class="field-label">Team B</label>
+              <select class="inp" id="teamB"></select>
+            </div>
+          </div>
+
+          <button class="btn btn-full" id="btnCalc">Calculate Deltas</button>
+
+          <div id="versusBox">
+            <div class="vs-info-row" style="margin-bottom:10px;">
+              <div>Exp A: <span id="EA" class="mono">—</span></div>
+              <div>Exp B: <span id="EB" class="mono">—</span></div>
+              <div>K(A): <span id="KA" class="mono">—</span></div>
+              <div>K(B): <span id="KB" class="mono">—</span></div>
+            </div>
+            <div class="versus-grid">
+              <div class="vs-outcome">
+                <div class="vs-outcome-label">A Wins</div>
+                <div class="vs-delta">A: <span class="pos" id="dA_win">—</span> | B: <span class="neg" id="dB_lose">—</span></div>
+              </div>
+              <div class="vs-outcome">
+                <div class="vs-outcome-label">B Wins</div>
+                <div class="vs-delta">A: <span class="neg" id="dA_lose">—</span> | B: <span class="pos" id="dB_win">—</span></div>
+              </div>
+              <div class="vs-outcome" style="grid-column:1/-1;">
+                <div class="vs-outcome-label">Draw</div>
+                <div class="vs-delta">A: <span id="dA_draw">—</span> | B: <span id="dB_draw">—</span></div>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+            <div class="field">
+              <label class="field-label">Result</label>
+              <select class="inp" id="matchResult">
+                <option value="A">Team A wins</option>
+                <option value="B">Team B wins</option>
+                <option value="D">Draw</option>
+              </select>
+            </div>
+            <button class="btn btn-green btn-full" id="btnApplyMatch">▸ Apply Match</button>
+            <div class="note" style="margin-top:8px;">Applies: Points, W/L, Streak, consumes 1 bonus game if active.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HEAD-TO-HEAD HISTORY -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title"><div class="icon">◐</div> H2H History</div>
+          <span class="chip">Session</span>
+        </div>
+        <div class="panel-body">
+          <div class="two-col">
+            <div class="field">
+              <label class="field-label">Team A</label>
+              <select class="inp" id="h2hA"></select>
+            </div>
+            <div class="field">
+              <label class="field-label">Team B</label>
+              <select class="inp" id="h2hB"></select>
+            </div>
+          </div>
+          <button class="btn btn-full" id="btnH2H">View H2H</button>
+          <div id="h2hResult" style="display:none;margin-top:12px;"></div>
+        </div>
+      </div>
+
+      <!-- TOURNAMENT WIN -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title"><div class="icon">★</div> Tournament Win</div>
+          <span class="chip">1st place</span>
+        </div>
+        <div class="panel-body">
+          <div class="field">
+            <label class="field-label">Team</label>
+            <select class="inp" id="tourneyTeam"></select>
+          </div>
+          <div class="field">
+            <label class="field-label">Type</label>
+            <select class="inp" id="tourneyType">
+              <option value="regional">Regional (+5% / 5 games)</option>
+              <option value="global">Global (+10% / 8 games)</option>
+              <option value="major">Major (+20% / 12 games)</option>
+            </select>
+          </div>
+          <button class="btn btn-gold btn-full" id="btnApplyTourney">▸ Apply Tournament Win</button>
+          <div class="note" style="margin-top:8px;">Grants Majors/Trophies + temporary K multiplier bonus.</div>
+        </div>
+      </div>
+
+      <!-- SEASON RESET -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title"><div class="icon">♻</div> Season Reset</div>
+          <span class="chip">Irreversible</span>
+        </div>
+        <div class="panel-body">
+          <div style="padding:12px;background:rgba(0,0,0,0.3);border:1px solid var(--border-dim);font-family:var(--mono);font-size:11px;line-height:2;margin-bottom:12px;">
+            <span style="color:var(--text-dim)">base =</span> <span style="color:var(--cyan)">1000</span><br>
+            <span style="color:var(--text-dim)">keep =</span> <span style="color:var(--cyan)">35%</span><br>
+            <span style="color:var(--text-dim)">new  =</span> <span style="color:var(--cyan)">1000 + (old − 1000) × 0.35</span><br>
+            <span style="color:var(--text-dim)">prestige +=</span> <span style="color:var(--gold)">oldPoints ÷ 1000</span>
+          </div>
+          <button class="btn btn-full" id="btnPreviewReset">Preview Reset</button>
+          <div id="resetPreview"></div>
+          <button class="btn btn-red btn-full" style="margin-top:10px;" id="btnConfirmReset" disabled>
+            ⚠ Confirm Season Reset
+          </button>
+          <div class="note" style="margin-top:8px;">Streak, seasonal W/L reset to 0. Majors & Trophies preserved.</div>
+        </div>
+      </div>
+
+    </div><!-- /sidebar -->
+  </div><!-- /main-grid -->
+
+</div><!-- /wrapper -->
+
+<!-- ===================== AI ANALYSIS MODAL ===================== -->
+<div id="aiModal">
+  <div class="ai-modal-inner">
+    <div class="ai-modal-header">
+      <div class="ai-modal-title">
+        <div class="ai-icon">◈</div>
+        NEXUS INTELLIGENCE — Ranking Analysis
+      </div>
+      <button class="btn btn-red" id="btnCloseAI">✕ Close</button>
+    </div>
+    <div id="aiContent"></div>
+  </div>
+</div>
+
+<!-- ===================== SCRIPTS ===================== -->
+<script>
+/* ─── CONFIG ─── */
+const K_BASE = 30.0;
+const ELO_DIVISOR = 400.0;
+const STREAK_ALPHA = 0.10;
+const STREAK_SCALE = 5.0;
+const K_HARD_CAP_MULT = 1.35;
+
+const TOURNEY_BONUS = {
+  none:     { bonus: 0.00, dur: 0 },
+  regional: { bonus: 0.05, dur: 5 },
+  global:   { bonus: 0.10, dur: 8 },
+  major:    { bonus: 0.20, dur: 12 }
+};
+
+const COL = {
+  TEAM: "Team", V: "Victories", S: "Streak", L: "Loses",
+  PTS: "Points", MAJ: "Majors", PRE: "Prestige",
+  TRO: "Tournaments Trophies", TIER: "Tier", REG: "Region",
+  BONUS_TYPE: "BonusType", BONUS_REM: "BonusRemaining", UPDATED: "LastUpdated"
+};
+
+const RESET_BASE = 1000, RESET_KEEP = 0.35;
+const RECENT_MAX = 25;
+
+let teams = [], extraCols = [], recentMatches = [], resetPreviewReady = false;
+
+/* ─── UTILS ─── */
+function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
+function htmlEsc(s) {
+  return String(s ?? "")
+    .replaceAll("&","&amp;").replaceAll("<","&lt;")
+    .replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
+function showAlert(msg, kind="good") {
+  const cls = { good:"good", warn:"warn", bad:"bad" }[kind] || "good";
+  document.getElementById("alerts").innerHTML =
+    `<div class="alert-msg ${cls}">${msg}</div>`;
+}
+function fmtWhen(ts) {
+  const d = new Date(ts);
+  if (!isFinite(d)) return "";
+  return d.toLocaleString("en-US",{ month:"2-digit",day:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false });
+}
+
+/* ─── ELO MATH ─── */
+function expected(ra, rb) { return 1 / (1 + Math.pow(10, (rb - ra) / ELO_DIVISOR)); }
+function tanh2(x) { const e = Math.exp(2*x); return (e-1)/(e+1); }
+function streakBonus(s) { return STREAK_ALPHA * tanh2((Number(s)||0) / STREAK_SCALE); }
+function tourneyBonus(type, rem) {
+  const t = String(type||"none").toLowerCase();
+  if ((Number(rem)||0) <= 0) return 0;
+  return (TOURNEY_BONUS[t]||TOURNEY_BONUS.none).bonus;
+}
+function kFinal(row) {
+  const k = K_BASE * (1 + streakBonus(row[COL.S])) * (1 + tourneyBonus(row[COL.BONUS_TYPE], row[COL.BONUS_REM]));
+  return Math.min(k, K_BASE * K_HARD_CAP_MULT);
+}
+function tierFromPts(p) {
+  const n = Number(p)||0;
+  if (n >= 1700) return "Tier S";
+  if (n >= 1400) return "Tier 1";
+  if (n >= 1100) return "Tier 2";
+  return "Tier 3";
+}
+function tierClass(t) {
+  if (t==="Tier S") return "tier-badge tier-S";
+  if (t==="Tier 1") return "tier-badge tier-1";
+  if (t==="Tier 2") return "tier-badge tier-2";
+  return "tier-badge tier-3";
+}
+
+/* ─── NORMALIZE ─── */
+function ensureBonus(r) {
+  if (!(COL.BONUS_TYPE in r)) r[COL.BONUS_TYPE] = "none";
+  if (!(COL.BONUS_REM  in r)) r[COL.BONUS_REM]  = 0;
+  if (!(COL.UPDATED    in r)) r[COL.UPDATED]    = "";
+}
+function normalizeRow(r) {
+  const n = { ...r };
+  if (!(COL.TEAM in n)) n[COL.TEAM] = "";
+  n[COL.TEAM] = String(n[COL.TEAM]).trim();
+  const df = { [COL.V]:0,[COL.S]:0,[COL.L]:0,[COL.PTS]:RESET_BASE,[COL.MAJ]:0,[COL.PRE]:0,[COL.TRO]:0,[COL.TIER]:"Tier 3",[COL.REG]:"" };
+  for (const k of Object.keys(df)) if (!(k in n)) n[k] = df[k];
+  n[COL.V] = parseInt(n[COL.V])||0;
+  n[COL.S] = parseInt(n[COL.S])||0;
+  n[COL.L] = parseInt(n[COL.L])||0;
+  n[COL.MAJ] = parseInt(n[COL.MAJ])||0;
+  n[COL.TRO] = parseInt(n[COL.TRO])||0;
+  n[COL.PRE] = Number(n[COL.PRE])||0;
+  n[COL.PTS] = Number(n[COL.PTS]);
+  if (!isFinite(n[COL.PTS])) n[COL.PTS] = RESET_BASE;
+  ensureBonus(n);
+  n[COL.BONUS_TYPE] = String(n[COL.BONUS_TYPE]||"none").toLowerCase();
+  if (!(n[COL.BONUS_TYPE] in TOURNEY_BONUS)) n[COL.BONUS_TYPE] = "none";
+  n[COL.BONUS_REM] = parseInt(n[COL.BONUS_REM])||0;
+  n[COL.TIER] = tierFromPts(n[COL.PTS]);
+  return n;
+}
+function dedupeTeams(rows) {
+  const m = new Map();
+  for (const r of rows) { if (r[COL.TEAM]) m.set(r[COL.TEAM], r); }
+  return Array.from(m.values());
+}
+
+/* ─── UPDATE STATS BAR ─── */
+function updateStatsBar() {
+  const count = teams.length;
+  if (!count) return;
+  const avg = teams.reduce((a,t)=>a+(Number(t[COL.PTS])||0),0)/count;
+  const top = Math.max(...teams.map(t=>Number(t[COL.PTS])||0));
+  const active = teams.filter(t=>(Number(t[COL.BONUS_REM])||0)>0).length;
+  document.getElementById("st-teams").textContent = count;
+  document.getElementById("st-avg").textContent   = avg.toFixed(0);
+  document.getElementById("st-top").textContent   = top.toFixed(0);
+  document.getElementById("st-active").textContent = active;
+}
+
+/* ─── RENDER TABLE ─── */
+function fillSelects() {
+  const names = teams.map(t=>t[COL.TEAM]).sort((a,b)=>a.localeCompare(b));
+  for (const id of ["teamA","teamB","tourneyTeam","h2hA","h2hB"]) {
+    const s = document.getElementById(id);
+    s.innerHTML = names.map(n=>`<option value="${htmlEsc(n)}">${htmlEsc(n)}</option>`).join("");
+  }
+  if (names.length >= 2) {
+    document.getElementById("teamA").value = names[0];
+    document.getElementById("teamB").value = names[1];
+    document.getElementById("h2hA").value  = names[0];
+    document.getElementById("h2hB").value  = names[1];
+  }
+}
+
+function renderTable() {
+  teams.sort((a,b)=>(Number(b[COL.PTS])||0)-(Number(a[COL.PTS])||0));
+  const maxPts = (Number(teams[0]?.[COL.PTS])||0) || 1;
+  const tb = document.getElementById("tableBody");
+  tb.innerHTML = "";
+  teams.forEach((t, i) => {
+    const pts = Number(t[COL.PTS])||0;
+    const rank = i+1;
+    const rankClass = rank<=3 ? `rank-${rank}` : "rank-num";
+    const streak = Number(t[COL.S])||0;
+    const streakClass = streak>0 ? "streak-pos" : streak<0 ? "streak-neg" : "streak-zero";
+    const streakLabel = streak>0 ? `+${streak}🔥` : streak===0 ? "—" : streak;
+    const bt = String(t[COL.BONUS_TYPE]||"none");
+    const br = Number(t[COL.BONUS_REM]||0);
+    const bonusHtml = (br>0 && bt!=="none")
+      ? `<span class="bonus-badge">★ ${htmlEsc(bt)} (${br})</span>`
+      : `<span class="no-bonus">—</span>`;
+    const barW = Math.round((pts/maxPts)*100);
+    tb.innerHTML += `
+      <tr>
+        <td><span class="${rankClass}">${rank}</span></td>
+        <td><span class="team-name">${htmlEsc(t[COL.TEAM])}</span></td>
+        <td class="num">
+          <div class="pts-bar-wrap">
+            <div class="pts-bar"><div class="pts-bar-fill" style="width:${barW}%"></div></div>
+            <span style="font-family:var(--mono);min-width:58px;text-align:right">${pts.toFixed(2)}</span>
+          </div>
+        </td>
+        <td class="num" style="color:var(--green)">${t[COL.V]}</td>
+        <td class="num" style="color:var(--red)">${t[COL.L]}</td>
+        <td class="num"><span class="${streakClass}">${streakLabel}</span></td>
+        <td class="num">${t[COL.MAJ]}</td>
+        <td class="num">${t[COL.TRO]}</td>
+        <td class="num" style="color:var(--gold)">${Number(t[COL.PRE]||0).toFixed(3)}</td>
+        <td><span class="${tierClass(t[COL.TIER])}">${htmlEsc(t[COL.TIER])}</span></td>
+        <td style="font-family:var(--mono);font-size:11px;color:var(--text-dim)">${htmlEsc(t[COL.REG])}</td>
+        <td>${bonusHtml}</td>
+      </tr>`;
+  });
+  fillSelects();
+  updateStatsBar();
+}
+
+/* ─── RENDER RECENT ─── */
+function renderRecent() {
+  const tb = document.getElementById("recentMatchesBody");
+  if (!recentMatches.length) {
+    tb.innerHTML = `<tr><td colspan="6" style="color:var(--text-muted);font-family:var(--mono);font-size:11px;padding:14px;text-align:center;">No matches applied yet.</td></tr>`;
+    return;
+  }
+  tb.innerHTML = "";
+  for (const m of recentMatches) {
+    const winner = m.result==="A" ? m.aName : m.result==="B" ? m.bName : "Draw";
+    const dA = Number(m.deltaA||0), dB = Number(m.deltaB||0);
+    tb.innerHTML += `
+      <tr>
+        <td style="font-family:var(--mono);font-size:11px;color:var(--text-dim)">${htmlEsc(fmtWhen(m.ts))}</td>
+        <td style="font-size:13px;">${htmlEsc(m.aName)} <span style="color:var(--text-muted)">vs</span> ${htmlEsc(m.bName)}</td>
+        <td><span class="tier-badge" style="color:var(--cyan);border-color:rgba(0,229,204,0.35)">${htmlEsc(winner)}</span></td>
+        <td class="num" style="font-family:var(--mono);color:${dA>=0?'var(--green)':'var(--red)'}">${dA.toFixed(2)}</td>
+        <td class="num" style="font-family:var(--mono);color:${dB>=0?'var(--green)':'var(--red)'}">${dB.toFixed(2)}</td>
+        <td class="num"><button class="btn btn-red" style="padding:4px 8px;font-size:11px;" data-undo-id="${htmlEsc(m.id)}">Undo</button></td>
+      </tr>`;
+  }
+  tb.querySelectorAll("[data-undo-id]").forEach(b=>b.addEventListener("click",()=>undoMatch(b.getAttribute("data-undo-id"))));
+}
+
+function undoMatch(id) {
+  const idx = recentMatches.findIndex(m=>m.id===id);
+  if (idx<0) { showAlert("Undo failed: match not found.","bad"); return; }
+  const m = recentMatches[idx];
+  const A = teams.find(t=>t[COL.TEAM]===m.aName);
+  const B = teams.find(t=>t[COL.TEAM]===m.bName);
+  if (!A||!B) { showAlert("Undo failed: team not found.","bad"); return; }
+  Object.assign(A, deepClone(m.beforeA));
+  Object.assign(B, deepClone(m.beforeB));
+  recentMatches.splice(idx,1);
+  renderTable(); renderRecent();
+  showAlert("Match undone. Download Excel to persist current state.","good");
+}
+
+/* ─── VERSUS ─── */
+function computeDeltas(A, B) {
+  const ra = Number(A[COL.PTS])||0, rb = Number(B[COL.PTS])||0;
+  const ea = expected(ra, rb), eb = 1-ea;
+  const kA = kFinal(A), kB = kFinal(B);
+  const d = (k,s,e)=>k*(s-e);
+  return {
+    ea, eb, kA, kB,
+    A_win:{ dA:d(kA,1,ea),   dB:d(kB,0,eb) },
+    B_win:{ dA:d(kA,0,ea),   dB:d(kB,1,eb) },
+    draw: { dA:d(kA,0.5,ea), dB:d(kB,0.5,eb) }
+  };
+}
+
+function consumeBonus(t) {
+  let rem = Number(t[COL.BONUS_REM])||0;
+  if (rem>0) {
+    rem--; t[COL.BONUS_REM]=rem;
+    if (rem<=0){ t[COL.BONUS_TYPE]="none"; t[COL.BONUS_REM]=0; }
+  }
+}
+
+document.getElementById("btnCalc").addEventListener("click",()=>{
+  if (!teams.length) { showAlert("Load the Excel first.","warn"); return; }
+  const aName=document.getElementById("teamA").value, bName=document.getElementById("teamB").value;
+  if (!aName||!bName||aName===bName){ showAlert("Choose two different teams.","warn"); return; }
+  const A=teams.find(t=>t[COL.TEAM]===aName), B=teams.find(t=>t[COL.TEAM]===bName);
+  const d=computeDeltas(A,B);
+  document.getElementById("EA").textContent=d.ea.toFixed(4);
+  document.getElementById("EB").textContent=d.eb.toFixed(4);
+  document.getElementById("KA").textContent=d.kA.toFixed(2);
+  document.getElementById("KB").textContent=d.kB.toFixed(2);
+  const sign=(n)=>n>=0?`<span class="pos">+${n.toFixed(2)}</span>`:`<span class="neg">${n.toFixed(2)}</span>`;
+  document.getElementById("dA_win").innerHTML =sign(d.A_win.dA);
+  document.getElementById("dB_lose").innerHTML=sign(d.A_win.dB);
+  document.getElementById("dA_lose").innerHTML=sign(d.B_win.dA);
+  document.getElementById("dB_win").innerHTML =sign(d.B_win.dB);
+  document.getElementById("dA_draw").innerHTML=sign(d.draw.dA);
+  document.getElementById("dB_draw").innerHTML=sign(d.draw.dB);
+  document.getElementById("versusBox").style.display="block";
+});
+
+document.getElementById("btnApplyMatch").addEventListener("click",()=>{
+  const res=document.getElementById("matchResult").value;
+  const aName=document.getElementById("teamA").value, bName=document.getElementById("teamB").value;
+  if (!aName||!bName||aName===bName){ showAlert("Choose two different teams.","warn"); return; }
+  const A=teams.find(t=>t[COL.TEAM]===aName), B=teams.find(t=>t[COL.TEAM]===bName);
+  if (!A||!B){ showAlert("Team not found.","bad"); return; }
+  const beforeA=deepClone(A), beforeB=deepClone(B);
+  const d=computeDeltas(A,B);
+  let dA=0,dB=0;
+  if(res==="A"){
+    dA=d.A_win.dA; dB=d.A_win.dB;
+    A[COL.PTS]+=dA; B[COL.PTS]+=dB;
+    A[COL.V]+=1; B[COL.L]+=1;
+    A[COL.S]+=1; B[COL.S]=0;
+  } else if(res==="B"){
+    dA=d.B_win.dA; dB=d.B_win.dB;
+    A[COL.PTS]+=dA; B[COL.PTS]+=dB;
+    B[COL.V]+=1; A[COL.L]+=1;
+    B[COL.S]+=1; A[COL.S]=0;
+  } else {
+    dA=d.draw.dA; dB=d.draw.dB;
+    A[COL.PTS]+=dA; B[COL.PTS]+=dB;
+    A[COL.S]=0; B[COL.S]=0;
+  }
+  consumeBonus(A); consumeBonus(B);
+  A[COL.TIER]=tierFromPts(A[COL.PTS]);
+  B[COL.TIER]=tierFromPts(B[COL.PTS]);
+  const ts=new Date().toISOString();
+  A[COL.UPDATED]=ts; B[COL.UPDATED]=ts;
+  const id=`${ts}::${aName}::${bName}::${Math.random().toString(16).slice(2)}`;
+  recentMatches.unshift({ id,ts,aName,bName,result:res,deltaA:dA,deltaB:dB,beforeA,beforeB });
+  if(recentMatches.length>RECENT_MAX) recentMatches.pop();
+  renderTable(); renderRecent();
+  showAlert(`Match applied: <strong>${htmlEsc(res==="A"?aName:res==="B"?bName:"Draw")}</strong> wins. Download Excel to persist.`,"good");
+});
+
+/* ─── H2H ─── */
+document.getElementById("btnH2H").addEventListener("click",()=>{
+  const aName=document.getElementById("h2hA").value, bName=document.getElementById("h2hB").value;
+  if(!aName||!bName||aName===bName){ showAlert("Choose two different teams for H2H.","warn"); return; }
+  const history=recentMatches.filter(m=>(m.aName===aName&&m.bName===bName)||(m.aName===bName&&m.bName===aName));
+  const box=document.getElementById("h2hResult");
+  if(!history.length){
+    box.innerHTML=`<div style="font-family:var(--mono);font-size:12px;color:var(--text-dim);padding:10px 0;">No matches found between these teams in this session.</div>`;
+    box.style.display="block";
+    return;
+  }
+  let wA=0,wB=0,draws=0;
+  for(const m of history){
+    const aIs = m.aName===aName?"A":"B";
+    const bIs = aIs==="A"?"B":"A";
+    if(m.result===aIs) wA++;
+    else if(m.result===bIs) wB++;
+    else draws++;
+  }
+  box.innerHTML=`
+    <div style="background:rgba(0,0,0,0.3);border:1px solid var(--border-dim);padding:12px;font-family:var(--mono);font-size:12px;">
+      <div style="font-size:13px;color:var(--text-bright);margin-bottom:8px;">${htmlEsc(aName)} vs ${htmlEsc(bName)}</div>
+      <div style="display:flex;gap:16px;">
+        <div><span style="color:var(--green);font-size:20px;">${wA}</span> <span style="color:var(--text-dim)">wins</span></div>
+        <div><span style="color:var(--red);font-size:20px;">${wB}</span> <span style="color:var(--text-dim)">wins</span></div>
+        <div><span style="color:var(--text-dim);font-size:20px;">${draws}</span> <span style="color:var(--text-dim)">draws</span></div>
+      </div>
+      <div style="color:var(--text-muted);margin-top:6px;">${history.length} match(es) in session</div>
+    </div>`;
+  box.style.display="block";
+});
+
+/* ─── TOURNAMENT ─── */
+document.getElementById("btnApplyTourney").addEventListener("click",()=>{
+  const name=document.getElementById("tourneyTeam").value;
+  const type=document.getElementById("tourneyType").value;
+  const T=teams.find(t=>t[COL.TEAM]===name);
+  if(!T){ showAlert("Team not found.","bad"); return; }
+  if(type==="major") T[COL.MAJ]+=1; else T[COL.TRO]+=1;
+  ensureBonus(T);
+  T[COL.BONUS_TYPE]=type;
+  T[COL.BONUS_REM]=TOURNEY_BONUS[type].dur;
+  T[COL.UPDATED]=new Date().toISOString();
+  renderTable();
+  showAlert(`Tournament win applied to <strong>${htmlEsc(name)}</strong>. Bonus activated.`,"good");
+});
+
+/* ─── SEASON RESET ─── */
+document.getElementById("btnPreviewReset").addEventListener("click",()=>{
+  if(!teams.length){ showAlert("Load Excel first.","warn"); return; }
+  let sumO=0,sumN=0,maxDrop=-Infinity,biggest=null;
+  for(const t of teams){
+    const o=Number(t[COL.PTS])||RESET_BASE;
+    const n=RESET_BASE+(o-RESET_BASE)*RESET_KEEP;
+    sumO+=o; sumN+=n;
+    if(o-n>maxDrop){ maxDrop=o-n; biggest={team:t[COL.TEAM],o,n,pre:o/1000}; }
+  }
+  const avgO=sumO/teams.length, avgN=sumN/teams.length;
+  const box=document.getElementById("resetPreview");
+  box.style.display="block";
+  box.innerHTML=`
+    <div style="margin-bottom:8px;font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;">⚠ Reset Preview</div>
+    <div>Teams: <span class="rv">${teams.length}</span></div>
+    <div>Avg pts: <span class="rv">${avgO.toFixed(1)}</span> → <span class="rv">${avgN.toFixed(1)}</span></div>
+    <div>Biggest drop: <span class="rv">${htmlEsc(biggest?.team||"")}</span> (<span class="rv">${biggest?.o.toFixed(1)}</span> → <span class="rv">${biggest?.n.toFixed(1)}</span>)</div>
+    <div style="color:var(--text-muted);font-size:10px;margin-top:6px;">This action is irreversible in the spreadsheet.</div>`;
+  resetPreviewReady=true;
+  document.getElementById("btnConfirmReset").disabled=false;
+  showAlert("Preview ready. Confirm when ready.","warn");
+});
+
+document.getElementById("btnConfirmReset").addEventListener("click",()=>{
+  if(!resetPreviewReady){ showAlert("Run preview first.","warn"); return; }
+  for(const t of teams){
+    const o=Number(t[COL.PTS])||RESET_BASE;
+    t[COL.PTS]=RESET_BASE+(o-RESET_BASE)*RESET_KEEP;
+    t[COL.PRE]=(Number(t[COL.PRE])||0)+(o/1000);
+    t[COL.V]=0; t[COL.L]=0; t[COL.S]=0;
+    ensureBonus(t);
+    t[COL.BONUS_TYPE]="none"; t[COL.BONUS_REM]=0;
+    t[COL.TIER]=tierFromPts(t[COL.PTS]);
+    t[COL.UPDATED]=new Date().toISOString();
+  }
+  resetPreviewReady=false;
+  document.getElementById("btnConfirmReset").disabled=true;
+  document.getElementById("resetPreview").style.display="none";
+  renderTable();
+  showAlert("Season reset applied. Download Excel to persist.","good");
+});
+
+/* ─── EXCEL I/O ─── */
+function toExportRows(){
+  return teams.map(t=>{
+    ensureBonus(t);
+    const r={
+      [COL.TEAM]:t[COL.TEAM],[COL.V]:t[COL.V],[COL.S]:t[COL.S],[COL.L]:t[COL.L],
+      [COL.PTS]:Number(t[COL.PTS]),[COL.MAJ]:t[COL.MAJ],[COL.PRE]:Number(t[COL.PRE]||0),
+      [COL.TRO]:t[COL.TRO],[COL.TIER]:t[COL.TIER],[COL.REG]:t[COL.REG],
+      [COL.BONUS_TYPE]:t[COL.BONUS_TYPE],[COL.BONUS_REM]:t[COL.BONUS_REM],[COL.UPDATED]:t[COL.UPDATED]||""
+    };
+    for(const c of extraCols) r[c]=t[c]??"";
+    return r;
+  });
+}
+
+document.getElementById("btnDownload").addEventListener("click",()=>{
+  if(!teams.length){ showAlert("Nothing to download.","warn"); return; }
+  const ws=XLSX.utils.json_to_sheet(toExportRows());
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"ranking");
+  XLSX.writeFile(wb,"ranking_updated.xlsx");
+  showAlert("Excel exported: <strong>ranking_updated.xlsx</strong>","good");
+});
+
+/* ─── LOAD ─── */
+function computeExtraCols(headers){
+  const off=new Set(Object.values(COL));
+  return headers.filter(h=>!off.has(h));
+}
+function loadFromAB(ab){
+  const wb=XLSX.read(ab,{type:"array"});
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  const range=XLSX.utils.decode_range(ws["!ref"]);
+  const headers=[];
+  for(let C=range.s.c;C<=range.e.c;C++){
+    const cell=ws[XLSX.utils.encode_cell({r:range.s.r,c:C})];
+    headers.push(cell?String(cell.v).trim():"");
+  }
+  extraCols=computeExtraCols(headers.filter(Boolean));
+  const raw=XLSX.utils.sheet_to_json(ws,{defval:""});
+  teams=dedupeTeams(raw.map(normalizeRow));
+  if(!teams.length){ showAlert(`Sheet loaded but no valid rows found.`,"warn"); return; }
+  renderTable();
+  document.getElementById("versusBox").style.display="none";
+  document.getElementById("resetPreview").style.display="none";
+  document.getElementById("btnConfirmReset").disabled=true;
+  resetPreviewReady=false;
+  recentMatches=[]; renderRecent();
+}
+
+async function loadFromUrl(){
+  const base=new URL(".",window.location.href);
+  const url=new URL("file/ranking.xlsx",base).toString();
+  document.getElementById("excelUrlLabel").textContent=url.replace(window.location.origin,"");
+  try{
+    const r=await fetch(url,{cache:"no-store"});
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    loadFromAB(await r.arrayBuffer());
+    showAlert(`Loaded from <code>${htmlEsc(url.replace(window.location.origin,""))}</code>`,"good");
+  } catch(e){
+    showAlert(`Auto-load failed: ${htmlEsc(e.message)} — Use manual file picker or check file/ranking.xlsx`,"warn");
+    renderRecent();
+  }
+}
+
+document.getElementById("btnReload").addEventListener("click",loadFromUrl);
+document.getElementById("fileInput").addEventListener("change",async ev=>{
+  const f=ev.target?.files?.[0]; if(!f) return;
+  loadFromAB(await f.arrayBuffer());
+  showAlert(`Loaded: <strong>${htmlEsc(f.name)}</strong>`,"good");
+});
+
+/* ─── BACK TO MENU ─── */
+function goMenu(){
+  if(window.history.length>1){ window.history.back(); return; }
+  window.location.assign(new URL("index.html",window.location.href).href);
+}
+document.getElementById("btnBackToMenu").addEventListener("click",e=>{e.preventDefault();goMenu();});
+document.addEventListener("keydown",e=>{
+  const t=(e.target?.tagName||"").toUpperCase();
+  if(["INPUT","SELECT","TEXTAREA"].includes(t)) return;
+  if(e.key==="0"){e.preventDefault();goMenu();}
+},{capture:true});
+
+/* ═══════════════════════════════════════════════════════════
+   AI ANALYSIS ENGINE
+   ═══════════════════════════════════════════════════════════ */
+function computeFormRating(team) {
+  const pts = Number(team[COL.PTS])||0;
+  const streak = Number(team[COL.S])||0;
+  const wins = Number(team[COL.V])||0;
+  const losses = Number(team[COL.L])||0;
+  const total = wins+losses;
+  const wr = total>0 ? wins/total : 0.5;
+
+  let score = 0;
+  score += (pts-RESET_BASE)*0.04;
+  score += streak*8;
+  score += wr*50;
+  score += (Number(team[COL.MAJ])||0)*15;
+  score += (Number(team[COL.TRO])||0)*8;
+  if((Number(team[COL.BONUS_REM])||0)>0) score+=10;
+
+  return Math.max(0, Math.min(100, score));
+}
+
+function getRating(score) {
+  if(score>=85) return {label:"S",class:"rating-S"};
+  if(score>=70) return {label:"A",class:"rating-A"};
+  if(score>=55) return {label:"B",class:"rating-B"};
+  if(score>=40) return {label:"C",class:"rating-C"};
+  return {label:"D",class:"rating-D"};
+}
+
+function detectOutliers(teams) {
+  const pts = teams.map(t=>Number(t[COL.PTS])||0);
+  const mean = pts.reduce((a,b)=>a+b,0)/pts.length;
+  const std = Math.sqrt(pts.reduce((a,b)=>a+(b-mean)**2,0)/pts.length);
+  return { mean, std };
+}
+
+function runAIAnalysis() {
+  if(!teams.length){ showAlert("Load Excel before running analysis.","warn"); return; }
+
+  const sorted=[...teams].sort((a,b)=>(Number(b[COL.PTS])||0)-(Number(a[COL.PTS])||0));
+  const { mean, std } = detectOutliers(sorted);
+  const maxPts = Number(sorted[0]?.[COL.PTS])||1;
+  const regions=[...new Set(teams.map(t=>String(t[COL.REG]||"")).filter(Boolean))];
+
+  // --- compute form scores ---
+  const withScore = sorted.map(t=>({...t, _score:computeFormRating(t)}));
+
+  // --- tier distribution ---
+  const tierDist={};
+  for(const t of teams){
+    const tier=t[COL.TIER]||"Tier 3";
+    tierDist[tier]=(tierDist[tier]||0)+1;
+  }
+
+  // --- streak leaders ---
+  const streakPos=[...teams].filter(t=>Number(t[COL.S])>0).sort((a,b)=>Number(b[COL.S])-Number(a[COL.S])).slice(0,3);
+  const streakNeg=[...teams].filter(t=>Number(t[COL.S])<0).sort((a,b)=>Number(a[COL.S])-Number(b[COL.S])).slice(0,3);
+
+  // --- win rate leaders ---
+  const wrTeams=[...teams].map(t=>{
+    const w=Number(t[COL.V])||0, l=Number(t[COL.L])||0, total=w+l;
+    return {...t, _wr: total>=3? w/total : null};
+  }).filter(t=>t._wr!==null).sort((a,b)=>b._wr-a._wr);
+
+  // --- active bonus teams ---
+  const bonusTeams=teams.filter(t=>(Number(t[COL.BONUS_REM])||0)>0);
+
+  // --- insights generation ---
+  const insights=[];
+
+  // Dominant team
+  if(sorted.length>1){
+    const lead=Number(sorted[0][COL.PTS])||0;
+    const second=Number(sorted[1][COL.PTS])||0;
+    const gap=lead-second;
+    if(gap>80) insights.push({type:"hot",icon:"🔥",text:`<strong>${htmlEsc(sorted[0][COL.TEAM])}</strong> dominates the ranking with a <span class="tag">${gap.toFixed(1)}</span> point gap over <strong>${htmlEsc(sorted[1][COL.TEAM])}</strong>. At this margin, the lead is effectively insurmountable in a single match.`});
+    else if(gap<20) insights.push({type:"warn",icon:"⚡",text:`Top two teams are <span class="tag">extremely close</span> — <strong>${htmlEsc(sorted[0][COL.TEAM])}</strong> leads by only <span class="tag">${gap.toFixed(1)}</span> pts over <strong>${htmlEsc(sorted[1][COL.TEAM])}</strong>. A single match reversal is very plausible.`});
+  }
+
+  // Below average teams
+  const belowAvg=sorted.filter(t=>(Number(t[COL.PTS])||0)<mean-std);
+  if(belowAvg.length>0){
+    insights.push({type:"danger",icon:"📉",text:`<strong>${belowAvg.length}</strong> team(s) are performing more than 1 standard deviation below average: <strong>${belowAvg.map(t=>htmlEsc(t[COL.TEAM])).join(", ")}</strong>. These teams are at risk of tier demotion.`});
+  }
+
+  // Hot streaks
+  if(streakPos.length){
+    const s=streakPos[0];
+    insights.push({type:"hot",icon:"🔥",text:`<strong>${htmlEsc(s[COL.TEAM])}</strong> is on a <span class="tag">+${s[COL.S]} win streak</span>, providing a <span class="tag">${(streakBonus(s[COL.S])*100).toFixed(1)}%</span> K bonus. This team is gaining points faster than baseline.`});
+  }
+
+  // Cold streaks
+  if(streakNeg.length){
+    const s=streakNeg[0];
+    insights.push({type:"danger",icon:"❄️",text:`<strong>${htmlEsc(s[COL.TEAM])}</strong> has a losing streak of <span class="tag">${s[COL.S]}</span>. Continued losses will accelerate point decay due to unfavorable K dynamics.`});
+  }
+
+  // Bonus advantage
+  if(bonusTeams.length){
+    insights.push({type:"info",icon:"★",text:`<strong>${bonusTeams.length}</strong> team(s) with active tournament bonus: <strong>${bonusTeams.map(t=>`${htmlEsc(t[COL.TEAM])} (${t[COL.BONUS_REM]}g)`).join(", ")}</strong>. These teams have elevated K multipliers — expect accelerated point swings.`});
+  }
+
+  // Tier S candidates
+  const nearS=sorted.filter(t=>{const p=Number(t[COL.PTS])||0; return p>=1550&&p<1700;});
+  if(nearS.length){
+    insights.push({type:"good",icon:"🎯",text:`<strong>${nearS.map(t=>htmlEsc(t[COL.TEAM])).join(", ")}</strong> ${nearS.length===1?"is":"are"} within striking distance of <span class="tag">Tier S</span> (1700 pts). <span class="tag">${(1700-(Number(nearS[0][COL.PTS])||0)).toFixed(0)}</span> points needed for the top tier.`});
+  }
+
+  // Prestige leaders
+  const preTeams=[...teams].filter(t=>(Number(t[COL.PRE])||0)>0).sort((a,b)=>Number(b[COL.PRE])-Number(a[COL.PRE]));
+  if(preTeams.length>0){
+    insights.push({type:"info",icon:"👑",text:`Prestige leaders (veterans): <strong>${preTeams.slice(0,3).map(t=>`${htmlEsc(t[COL.TEAM])} (${Number(t[COL.PRE]).toFixed(3)})`).join(", ")}</strong>. High prestige indicates multi-season longevity.`});
+  }
+
+  // Region balance
+  const regCount={};
+  for(const t of teams){ const r=String(t[COL.REG]||"Unknown"); regCount[r]=(regCount[r]||0)+1; }
+  const regEntries=Object.entries(regCount).sort((a,b)=>b[1]-a[1]);
+  if(regEntries.length>1){
+    insights.push({type:"info",icon:"🌐",text:`Regional distribution: ${regEntries.map(([r,n])=>`<span class="tag">${htmlEsc(r)}: ${n}</span>`).join(" ")}. ${regEntries[0][0]==="EU"?"EU dominates team count.":regEntries[0][0]==="AS/SIS/ESEA"?"Asian region leads in team count.":"Multiple regions are well-represented."}`});
+  }
+
+  // Win rate standout
+  if(wrTeams.length>0){
+    const top=wrTeams[0];
+    insights.push({type:"good",icon:"📈",text:`Best win rate: <strong>${htmlEsc(top[COL.TEAM])}</strong> with <span class="tag">${(top._wr*100).toFixed(1)}%</span> (${top[COL.V]}W-${top[COL.L]}L). Consistent results indicate a stable competitive system.`});
+  }
+
+  // --- build HTML ---
+  let html = "";
+
+  // Performance overview cards
+  html += `<div class="ai-section">
+    <div class="ai-section-head">⬡ Performance Overview</div>
+    <div class="ai-section-body">
+      <div class="ai-team-grid">`;
+  for(const t of withScore.slice(0,12)){
+    const r=getRating(t._score);
+    const barW=Math.round((Number(t[COL.PTS])||0)/maxPts*100);
+    const wr=(Number(t[COL.V])+Number(t[COL.L]))>0?(Number(t[COL.V])/(Number(t[COL.V])+Number(t[COL.L]))*100).toFixed(0)+"%":"—";
+    html+=`
+      <div class="ai-team-card">
+        <div class="atc-name">${htmlEsc(t[COL.TEAM])}</div>
+        <div class="atc-pts">${(Number(t[COL.PTS])||0).toFixed(1)}</div>
+        <div class="atc-bar"><div class="atc-bar-fill" style="width:${barW}%"></div></div>
+        <div class="atc-meta">
+          WR: ${wr} &nbsp;|&nbsp; STK: ${Number(t[COL.S])>0?"+":""}${t[COL.S]} &nbsp;|&nbsp; ${htmlEsc(t[COL.REG]||"—")}
+        </div>
+        <div><span class="atc-rating ${r.class}">${r.label}-FORM</span></div>
+      </div>`;
+  }
+  html+=`</div></div></div>`;
+
+  // Insights
+  html+=`<div class="ai-section">
+    <div class="ai-section-head">◈ Key Insights</div>
+    <div class="ai-section-body">`;
+  if(!insights.length){
+    html+=`<div style="color:var(--text-dim);font-family:var(--mono);font-size:12px;">No notable insights detected. Rankings appear balanced.</div>`;
+  } else {
+    for(const ins of insights){
+      html+=`<div class="ai-insight ${ins.type}"><span class="ai-insight-icon">${ins.icon}</span><div class="ai-insight-text">${ins.text}</div></div>`;
+    }
+  }
+  html+=`</div></div>`;
+
+  // Points distribution bar chart
+  html+=`<div class="ai-section">
+    <div class="ai-section-head">▰ Points Distribution</div>
+    <div class="ai-section-body">
+      <div class="mini-bar-chart">`;
+  for(const t of sorted){
+    const pts=Number(t[COL.PTS])||0;
+    const w=Math.round(pts/maxPts*100);
+    const color = pts>=1700?"#C77DFF":pts>=1400?"var(--cyan)":pts>=1100?"var(--green)":"var(--text-dim)";
+    html+=`<div class="mbc-row">
+      <div class="mbc-label">${htmlEsc(t[COL.TEAM])}</div>
+      <div class="mbc-track"><div class="mbc-fill" style="width:${w}%;background:${color}"></div></div>
+      <div class="mbc-val">${pts.toFixed(1)}</div>
+    </div>`;
+  }
+  html+=`</div></div></div>`;
+
+  // Statistics summary
+  html+=`<div class="ai-section">
+    <div class="ai-section-head">∑ Statistics Summary</div>
+    <div class="ai-section-body">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;">
+        <div style="padding:12px;background:rgba(0,0,0,0.3);border:1px solid var(--border-dim);">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;">Mean Points</div>
+          <div style="font-family:var(--mono);font-size:22px;color:var(--cyan);margin-top:4px;">${mean.toFixed(1)}</div>
+        </div>
+        <div style="padding:12px;background:rgba(0,0,0,0.3);border:1px solid var(--border-dim);">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;">Std Deviation</div>
+          <div style="font-family:var(--mono);font-size:22px;color:var(--orange);margin-top:4px;">${std.toFixed(1)}</div>
+        </div>
+        <div style="padding:12px;background:rgba(0,0,0,0.3);border:1px solid var(--border-dim);">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;">Leader Delta</div>
+          <div style="font-family:var(--mono);font-size:22px;color:var(--gold);margin-top:4px;">${(maxPts-mean).toFixed(1)}</div>
+        </div>
+        <div style="padding:12px;background:rgba(0,0,0,0.3);border:1px solid var(--border-dim);">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;">Tier S Teams</div>
+          <div style="font-family:var(--mono);font-size:22px;color:#C77DFF;margin-top:4px;">${(tierDist["Tier S"]||0)}</div>
+        </div>
+        <div style="padding:12px;background:rgba(0,0,0,0.3);border:1px solid var(--border-dim);">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;">Total Matches</div>
+          <div style="font-family:var(--mono);font-size:22px;color:var(--text-bright);margin-top:4px;">${teams.reduce((a,t)=>a+(Number(t[COL.V])||0)+(Number(t[COL.L])||0),0)/2|0}</div>
+        </div>
+        <div style="padding:12px;background:rgba(0,0,0,0.3);border:1px solid var(--border-dim);">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;">Total Majors</div>
+          <div style="font-family:var(--mono);font-size:22px;color:var(--red);margin-top:4px;">${teams.reduce((a,t)=>a+(Number(t[COL.MAJ])||0),0)}</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  // Tier distribution
+  const tierOrder=["Tier S","Tier 1","Tier 2","Tier 3"];
+  const tierColors={"Tier S":"#C77DFF","Tier 1":"var(--cyan)","Tier 2":"var(--green)","Tier 3":"var(--text-dim)"};
+  html+=`<div class="ai-section">
+    <div class="ai-section-head">◫ Tier Distribution</div>
+    <div class="ai-section-body">
+      <div class="mini-bar-chart">`;
+  for(const tier of tierOrder){
+    const n=tierDist[tier]||0;
+    const w=Math.round(n/teams.length*100);
+    html+=`<div class="mbc-row">
+      <div class="mbc-label" style="color:${tierColors[tier]}">${tier}</div>
+      <div class="mbc-track"><div class="mbc-fill" style="width:${w}%;background:${tierColors[tier]};opacity:0.7"></div></div>
+      <div class="mbc-val">${n} team${n!==1?"s":""}</div>
+    </div>`;
+  }
+  html+=`</div></div></div>`;
+
+  document.getElementById("aiContent").innerHTML=html;
+  document.getElementById("aiModal").style.display="block";
+  document.body.style.overflow="hidden";
+}
+
+document.getElementById("btnAI").addEventListener("click",runAIAnalysis);
+document.getElementById("btnCloseAI").addEventListener("click",()=>{
+  document.getElementById("aiModal").style.display="none";
+  document.body.style.overflow="";
+});
+document.getElementById("aiModal").addEventListener("click",e=>{
+  if(e.target===document.getElementById("aiModal")){
+    document.getElementById("aiModal").style.display="none";
+    document.body.style.overflow="";
+  }
+});
+
+/* ─── INIT ─── */
+renderRecent();
+loadFromUrl();
+</script>
+</body>
+</html>

@@ -1,0 +1,1466 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SEEDING // Match Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+  :root{
+    --bg:#070d1a;
+    --surface:#0c1525;
+    --surface2:#111e35;
+    --card:#0e1a2f;
+    --text:#d4e0ff;
+    --muted:#6a7fa8;
+    --accent:#00d4ff;
+    --accent2:#7cf2c2;
+    --hot:#ff4d6d;
+    --wine:#9b2335;
+    --wine-glow:rgba(155,35,53,.3);
+    --border:rgba(0,212,255,.12);
+    --border2:rgba(0,212,255,.06);
+    --glow:rgba(0,212,255,.15);
+    --shadow:0 20px 60px rgba(0,0,0,.5);
+    --mono:'Share Tech Mono', 'Courier New', monospace;
+    --head:'Rajdhani', sans-serif;
+    --body:'Exo 2', sans-serif;
+    --r:12px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+
+  @keyframes scanline{
+    0%{transform:translateY(-100%)}
+    100%{transform:translateY(100vh)}
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1} 50%{opacity:.4}
+  }
+  @keyframes flicker{
+    0%,100%{opacity:1} 92%{opacity:1} 93%{opacity:.7} 94%{opacity:1} 97%{opacity:.85} 98%{opacity:1}
+  }
+  @keyframes gridFade{
+    from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)}
+  }
+  @keyframes glitch{
+    0%,100%{clip-path:none;transform:none}
+    20%{clip-path:polygon(0 20%,100% 20%,100% 21%,0 21%);transform:translateX(-2px)}
+    40%{clip-path:polygon(0 60%,100% 60%,100% 62%,0 62%);transform:translateX(2px)}
+    60%{clip-path:none;transform:none}
+  }
+  @keyframes slideIn{
+    from{opacity:0;transform:translateX(-16px)} to{opacity:1;transform:translateX(0)}
+  }
+  @keyframes matchReveal{
+    from{opacity:0;transform:scaleX(.97)} to{opacity:1;transform:scaleX(1)}
+  }
+  @keyframes spin{
+    from{transform:rotate(0deg)} to{transform:rotate(360deg)}
+  }
+
+  body{
+    font-family:var(--body);
+    background:var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    overflow-x:hidden;
+    position:relative;
+  }
+
+  /* Tactical grid background */
+  body::before{
+    content:'';
+    position:fixed;
+    inset:0;
+    background-image:
+      linear-gradient(rgba(0,212,255,.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,.025) 1px, transparent 1px);
+    background-size:40px 40px;
+    pointer-events:none;
+    z-index:0;
+  }
+  body::after{
+    content:'';
+    position:fixed;
+    inset:0;
+    background:
+      radial-gradient(ellipse 900px 600px at 0% 0%, rgba(0,212,255,.08) 0%, transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 100%, rgba(124,242,194,.06) 0%, transparent 55%),
+      radial-gradient(ellipse 500px 400px at 60% 50%, rgba(155,35,53,.05) 0%, transparent 60%);
+    pointer-events:none;
+    z-index:0;
+  }
+
+  /* Scanline */
+  .scanline{
+    position:fixed;
+    top:0; left:0; right:0;
+    height:2px;
+    background:linear-gradient(90deg, transparent, rgba(0,212,255,.3), transparent);
+    animation:scanline 8s linear infinite;
+    z-index:999;
+    pointer-events:none;
+    opacity:.4;
+  }
+
+  /* TOPBAR */
+  .topbar{
+    position:sticky; top:0; z-index:100;
+    display:flex; align-items:center; gap:16px;
+    padding:14px 28px;
+    background:rgba(7,13,26,.88);
+    border-bottom:1px solid rgba(0,212,255,.18);
+    backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);
+  }
+  .topbar::before{
+    content:'';
+    position:absolute;
+    bottom:0; left:0; right:0;
+    height:1px;
+    background:linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity:.4;
+  }
+
+  .logo{
+    display:flex; align-items:center; gap:10px;
+  }
+  .logo-icon{
+    width:36px; height:36px;
+    border:1px solid rgba(0,212,255,.4);
+    border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(0,212,255,.08);
+    font-size:16px;
+    color:var(--accent);
+    position:relative;
+    animation:flicker 10s infinite;
+  }
+  .logo-icon::before{
+    content:'';
+    position:absolute;
+    inset:2px;
+    border:1px solid rgba(0,212,255,.2);
+    border-radius:5px;
+  }
+
+  .logo-text h1{
+    font-family:var(--head);
+    font-size:18px; font-weight:700;
+    letter-spacing:3px;
+    color:var(--accent);
+    text-transform:uppercase;
+    line-height:1;
+  }
+  .logo-text p{
+    font-family:var(--mono);
+    font-size:10px;
+    color:var(--muted);
+    letter-spacing:1px;
+    margin-top:2px;
+  }
+
+  .topbar-status{
+    margin-left:auto;
+    display:flex; align-items:center; gap:8px;
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--muted);
+  }
+  .status-dot{
+    width:6px; height:6px;
+    border-radius:50%;
+    background:var(--accent2);
+    animation:pulse 2s infinite;
+  }
+  .status-dot.red{background:var(--hot); animation:pulse 1.5s infinite}
+
+  .back-btn{
+    display:flex; align-items:center; gap:7px;
+    padding:9px 16px;
+    border-radius:var(--r);
+    border:1px solid var(--border);
+    background:rgba(0,212,255,.06);
+    color:var(--accent);
+    cursor:pointer;
+    font-family:var(--head);
+    font-size:13px; font-weight:600;
+    letter-spacing:1px;
+    transition:all .2s;
+    text-transform:uppercase;
+  }
+  .back-btn:hover{
+    border-color:rgba(0,212,255,.5);
+    background:rgba(0,212,255,.12);
+    box-shadow:0 0 20px rgba(0,212,255,.15);
+  }
+
+  /* MAIN LAYOUT */
+  .container{
+    max-width:1200px;
+    margin:0 auto;
+    padding:24px 24px 80px;
+    position:relative; z-index:1;
+  }
+
+  /* SECTIONS */
+  .section{
+    margin-bottom:20px;
+  }
+
+  .section-header{
+    display:flex; align-items:center; gap:12px;
+    margin-bottom:14px;
+  }
+  .section-num{
+    width:28px; height:28px;
+    border-radius:6px;
+    background:linear-gradient(135deg, rgba(0,212,255,.2), rgba(0,212,255,.05));
+    border:1px solid rgba(0,212,255,.35);
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--accent);
+    flex-shrink:0;
+  }
+  .section-title{
+    font-family:var(--head);
+    font-size:16px; font-weight:700;
+    letter-spacing:2px;
+    color:var(--text);
+    text-transform:uppercase;
+  }
+  .section-line{
+    flex:1;
+    height:1px;
+    background:linear-gradient(90deg, rgba(0,212,255,.3), transparent);
+  }
+
+  /* CARD */
+  .card{
+    background:linear-gradient(160deg, rgba(14,26,47,.95), rgba(11,18,36,.95));
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:20px;
+    position:relative;
+    overflow:hidden;
+  }
+  .card::before{
+    content:'';
+    position:absolute;
+    top:0; left:0; right:0;
+    height:1px;
+    background:linear-gradient(90deg, transparent, rgba(0,212,255,.4), transparent);
+    opacity:.6;
+  }
+
+  /* LOAD STATE */
+  .load-state{
+    display:flex; align-items:center; gap:10px;
+    padding:12px 16px;
+    border-radius:10px;
+    border:1px dashed rgba(0,212,255,.25);
+    background:rgba(0,212,255,.03);
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--muted);
+  }
+  .load-state.ok{border-color:rgba(124,242,194,.35); color:var(--accent2);}
+  .load-state.err{border-color:rgba(255,77,109,.4); color:var(--hot);}
+
+  /* FALLBACK */
+  details.fallback{
+    margin-top:14px;
+    border:1px solid var(--border);
+    border-radius:var(--r);
+    overflow:hidden;
+  }
+  details.fallback summary{
+    padding:12px 16px;
+    cursor:pointer;
+    font-family:var(--head);
+    font-size:13px; font-weight:600;
+    letter-spacing:1px;
+    color:var(--muted);
+    background:rgba(0,212,255,.04);
+    user-select:none;
+    list-style:none;
+    display:flex; align-items:center; gap:8px;
+  }
+  details.fallback summary::before{content:'▸'}
+  details[open].fallback summary::before{content:'▾'}
+  details.fallback summary:hover{color:var(--text)}
+  .fallback-body{padding:14px 16px; border-top:1px solid var(--border);}
+
+  /* FORM ELEMENTS */
+  .row{display:flex; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-top:10px;}
+  .field{display:flex; flex-direction:column; gap:6px; min-width:220px;}
+  .field.grow{flex:1}
+  label{
+    font-family:var(--head);
+    font-size:11px; font-weight:600;
+    letter-spacing:2px;
+    color:var(--muted);
+    text-transform:uppercase;
+  }
+  input, textarea, select{
+    width:100%;
+    padding:10px 14px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:rgba(0,8,20,.6);
+    color:var(--text);
+    outline:none;
+    font-family:var(--body);
+    font-size:13px;
+    transition:border-color .2s, box-shadow .2s;
+  }
+  textarea{min-height:80px; resize:vertical;}
+  input:focus, textarea:focus{
+    border-color:rgba(0,212,255,.5);
+    box-shadow:0 0 0 3px rgba(0,212,255,.06);
+  }
+
+  /* BUTTONS */
+  .btn{
+    display:inline-flex; align-items:center; gap:7px;
+    padding:10px 16px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:rgba(0,212,255,.06);
+    color:var(--text);
+    cursor:pointer;
+    font-family:var(--head);
+    font-size:13px; font-weight:600;
+    letter-spacing:1px;
+    transition:all .2s;
+    text-transform:uppercase;
+    white-space:nowrap;
+  }
+  .btn:hover{border-color:rgba(0,212,255,.4); background:rgba(0,212,255,.1);}
+  .btn.primary{
+    background:linear-gradient(135deg, rgba(0,212,255,.2), rgba(124,242,194,.12));
+    border-color:rgba(0,212,255,.45);
+    color:var(--accent);
+    box-shadow:0 0 20px rgba(0,212,255,.1);
+  }
+  .btn.primary:hover{
+    background:linear-gradient(135deg, rgba(0,212,255,.3), rgba(124,242,194,.2));
+    box-shadow:0 0 30px rgba(0,212,255,.2);
+  }
+  .btn.danger{border-color:rgba(255,77,109,.3); color:var(--hot);}
+  .btn.danger:hover{border-color:rgba(255,77,109,.6); background:rgba(255,77,109,.1);}
+  .btn.green{border-color:rgba(124,242,194,.3); color:var(--accent2);}
+  .btn.green:hover{border-color:rgba(124,242,194,.6); background:rgba(124,242,194,.08);}
+  .btn.ai{
+    background:linear-gradient(135deg, rgba(155,35,53,.25), rgba(255,77,109,.1));
+    border-color:rgba(155,35,53,.6);
+    color:#ff8fa3;
+    position:relative; overflow:hidden;
+  }
+  .btn.ai::before{
+    content:'';
+    position:absolute; inset:0;
+    background:linear-gradient(90deg, transparent, rgba(255,77,109,.1), transparent);
+    transform:translateX(-100%);
+    transition:transform .4s;
+  }
+  .btn.ai:hover::before{transform:translateX(100%)}
+  .btn.ai:hover{box-shadow:0 0 25px rgba(155,35,53,.3); border-color:rgba(155,35,53,.9);}
+  .btn:disabled{opacity:.4; cursor:not-allowed; pointer-events:none;}
+
+  /* TEAM LIST */
+  .list-wrap{margin-top:14px;}
+  .list-head{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 14px;
+    background:rgba(0,212,255,.04);
+    border:1px solid var(--border);
+    border-bottom:none;
+    border-radius:10px 10px 0 0;
+    font-family:var(--head);
+    font-size:11px; font-weight:600;
+    letter-spacing:2px;
+    color:var(--muted);
+    text-transform:uppercase;
+  }
+  .list-head span:last-child{font-family:var(--mono); font-size:11px;}
+  .team-list{
+    max-height:320px;
+    overflow:auto;
+    border:1px solid var(--border);
+    border-radius:0 0 10px 10px;
+    padding:8px;
+    background:rgba(0,5,15,.4);
+    scrollbar-width:thin;
+    scrollbar-color:rgba(0,212,255,.2) transparent;
+  }
+  .team-item{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:8px 10px;
+    border-radius:8px;
+    cursor:pointer;
+    transition:background .15s;
+    animation:slideIn .2s ease both;
+  }
+  .team-item:hover{background:rgba(0,212,255,.05);}
+  .team-left{display:flex; align-items:center; gap:10px;}
+  .team-left input[type=checkbox]{
+    width:15px; height:15px;
+    accent-color:var(--accent);
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .team-name{font-size:13px; font-weight:500; color:var(--text);}
+  .team-pts{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--muted);
+    margin-top:1px;
+  }
+  .seed-badge{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--muted);
+    background:rgba(0,212,255,.06);
+    border:1px solid rgba(0,212,255,.12);
+    padding:2px 8px;
+    border-radius:5px;
+  }
+
+  /* EXTRA BADGES */
+  .region-badge{
+    font-family:var(--mono);
+    font-size:10px;
+    padding:2px 6px;
+    border-radius:4px;
+    background:rgba(124,242,194,.08);
+    border:1px solid rgba(124,242,194,.2);
+    color:var(--accent2);
+  }
+  .tier-badge{
+    font-family:var(--mono);
+    font-size:10px;
+    padding:2px 6px;
+    border-radius:4px;
+  }
+  .tier-badge.t1{background:rgba(255,215,0,.08); border:1px solid rgba(255,215,0,.25); color:#ffd700;}
+  .tier-badge.t2{background:rgba(192,192,192,.08); border:1px solid rgba(192,192,192,.2); color:#c0c0c0;}
+  .tier-badge.t3{background:rgba(205,127,50,.08); border:1px solid rgba(205,127,50,.2); color:#cd7f32;}
+
+  /* SELECTED TABLE */
+  .selected-table{
+    font-family:var(--mono);
+    font-size:12px;
+    line-height:1.8;
+    color:var(--text);
+    white-space:pre-wrap;
+    padding:12px;
+    border:1px solid var(--border);
+    border-radius:var(--r);
+    background:rgba(0,5,15,.4);
+    max-height:380px;
+    overflow:auto;
+    scrollbar-width:thin;
+    scrollbar-color:rgba(0,212,255,.2) transparent;
+  }
+
+  /* GRID */
+  .dual-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+    margin-top:16px;
+  }
+  @media(max-width:900px){.dual-grid{grid-template-columns:1fr}}
+
+  .panel{
+    background:rgba(0,5,15,.35);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:14px;
+  }
+  .panel-title{
+    font-family:var(--head);
+    font-size:12px; font-weight:700;
+    letter-spacing:2px;
+    color:var(--muted);
+    text-transform:uppercase;
+    margin-bottom:12px;
+    padding-bottom:8px;
+    border-bottom:1px solid var(--border2);
+    display:flex; align-items:center; gap:8px;
+  }
+  .panel-title span{
+    width:6px; height:6px;
+    border-radius:50%;
+    background:var(--accent);
+    display:inline-block;
+    animation:pulse 2s infinite;
+  }
+
+  /* MATCHUPS */
+  .matchups{display:flex; flex-direction:column; gap:10px; max-height:600px; overflow:auto; scrollbar-width:thin; scrollbar-color:rgba(0,212,255,.2) transparent;}
+
+  .match-card{
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:rgba(0,8,20,.5);
+    overflow:hidden;
+    animation:matchReveal .25s ease both;
+  }
+  .match-hdr{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:8px 12px;
+    background:rgba(0,212,255,.04);
+    border-bottom:1px solid var(--border2);
+    font-family:var(--head);
+    font-size:11px; font-weight:700;
+    letter-spacing:2px;
+    color:var(--muted);
+    text-transform:uppercase;
+  }
+  .match-hdr strong{color:var(--accent); font-size:12px;}
+  .match-body{
+    display:grid;
+    grid-template-columns:1fr auto 1fr;
+    gap:8px;
+    padding:10px 12px;
+    align-items:center;
+  }
+  .team-box{
+    padding:10px 12px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:rgba(255,255,255,.02);
+    transition:all .2s;
+  }
+  .team-box.wine{
+    border-color:rgba(155,35,53,.7);
+    background:linear-gradient(135deg, rgba(155,35,53,.18), rgba(0,0,0,.1));
+    box-shadow:0 0 20px rgba(155,35,53,.12);
+  }
+  .team-box.wine .tname{color:#ffc0cb;}
+  .team-box.bye{border-color:rgba(124,242,194,.25); background:rgba(124,242,194,.04);}
+  .tname{font-weight:600; font-size:13px; display:block;}
+  .tinfo{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--muted);
+    margin-top:3px;
+  }
+  .vs-badge{
+    font-family:var(--head);
+    font-size:14px; font-weight:700;
+    color:var(--accent);
+    text-align:center;
+    letter-spacing:1px;
+  }
+
+  /* AI ANALYSIS PANEL */
+  .ai-panel{
+    margin-top:16px;
+    border:1px solid rgba(155,35,53,.3);
+    border-radius:14px;
+    overflow:hidden;
+    display:none;
+  }
+  .ai-panel.visible{display:block; animation:gridFade .3s ease;}
+  .ai-header{
+    display:flex; align-items:center; gap:10px;
+    padding:12px 16px;
+    background:linear-gradient(90deg, rgba(155,35,53,.15), rgba(0,0,0,.1));
+    border-bottom:1px solid rgba(155,35,53,.2);
+  }
+  .ai-header span{
+    font-family:var(--head);
+    font-size:13px; font-weight:700;
+    letter-spacing:2px;
+    color:#ff8fa3;
+    text-transform:uppercase;
+    flex:1;
+  }
+  .ai-body{padding:16px;}
+
+  .analysis-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
+    gap:12px;
+    margin-bottom:16px;
+  }
+  .stat-card{
+    padding:12px 14px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:rgba(0,5,15,.5);
+  }
+  .stat-label{
+    font-family:var(--head);
+    font-size:10px; font-weight:700;
+    letter-spacing:2px;
+    color:var(--muted);
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  .stat-value{
+    font-family:var(--head);
+    font-size:22px; font-weight:700;
+    color:var(--accent);
+  }
+  .stat-value.hot{color:var(--hot);}
+  .stat-value.green{color:var(--accent2);}
+  .stat-sub{font-family:var(--mono); font-size:10px; color:var(--muted); margin-top:3px;}
+
+  .match-analysis{
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .ma-row{
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px;
+    border-radius:10px;
+    background:rgba(0,5,15,.5);
+    border:1px solid var(--border);
+  }
+  .ma-num{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--muted);
+    min-width:58px;
+  }
+  .ma-teams{flex:1; font-size:13px; font-weight:500;}
+  .ma-bar-wrap{min-width:100px;}
+  .ma-bar{
+    height:4px;
+    border-radius:2px;
+    background:rgba(0,212,255,.12);
+    overflow:hidden;
+  }
+  .ma-bar-fill{
+    height:100%;
+    border-radius:2px;
+    background:linear-gradient(90deg, var(--hot), var(--accent));
+    transition:width .6s ease;
+  }
+  .ma-delta{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--muted);
+    min-width:70px;
+    text-align:right;
+  }
+  .ma-tag{
+    font-family:var(--mono);
+    font-size:10px;
+    padding:2px 8px;
+    border-radius:4px;
+    min-width:72px;
+    text-align:center;
+  }
+  .ma-tag.upset{background:rgba(255,77,109,.12); border:1px solid rgba(255,77,109,.3); color:var(--hot);}
+  .ma-tag.predicted{background:rgba(124,242,194,.08); border:1px solid rgba(124,242,194,.2); color:var(--accent2);}
+  .ma-tag.tossup{background:rgba(0,212,255,.08); border:1px solid rgba(0,212,255,.2); color:var(--accent);}
+
+  .divider{height:1px; background:linear-gradient(90deg, transparent, var(--border), transparent); margin:14px 0;}
+
+  .insight-list{display:flex; flex-direction:column; gap:8px;}
+  .insight{
+    display:flex; align-items:flex-start; gap:10px;
+    padding:10px 12px;
+    border-radius:10px;
+    background:rgba(0,5,15,.4);
+    border-left:3px solid;
+    font-size:13px;
+    line-height:1.5;
+  }
+  .insight.info{border-color:var(--accent);}
+  .insight.warn{border-color:var(--hot);}
+  .insight.ok{border-color:var(--accent2);}
+  .insight-icon{font-size:15px; flex-shrink:0; margin-top:1px;}
+
+  /* FOOTER INFO */
+  .gen-info{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--muted);
+    margin-top:12px;
+    min-height:18px;
+  }
+
+  .hint{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--muted);
+    line-height:1.6;
+    margin-bottom:14px;
+  }
+  .hint code{color:var(--accent); background:rgba(0,212,255,.08); padding:1px 5px; border-radius:4px;}
+
+  kbd{
+    border:1px solid var(--border);
+    border-bottom-color:rgba(0,212,255,.3);
+    padding:2px 7px;
+    border-radius:6px;
+    background:rgba(0,8,20,.6);
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--muted);
+  }
+
+  footer.footer{
+    max-width:1200px;
+    margin:0 auto;
+    padding:0 24px 40px;
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--muted);
+    position:relative; z-index:1;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar{width:5px; height:5px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:rgba(0,212,255,.2); border-radius:3px;}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(0,212,255,.4);}
+
+  /* LOADER SPINNER */
+  .spinner{
+    width:14px; height:14px;
+    border:2px solid rgba(0,212,255,.2);
+    border-top-color:var(--accent);
+    border-radius:50%;
+    animation:spin 1s linear infinite;
+    display:inline-block;
+    flex-shrink:0;
+  }
+
+  /* QUICK ACTIONS */
+  .quick-actions{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:12px;}
+
+  .selct-count-badge{
+    font-family:var(--mono);
+    font-size:12px;
+    padding:4px 10px;
+    border-radius:6px;
+    background:rgba(0,212,255,.08);
+    border:1px solid rgba(0,212,255,.2);
+    color:var(--accent);
+  }
+  </style>
+</head>
+<body>
+  <div class="scanline"></div>
+
+  <header class="topbar">
+    <div class="logo">
+      <div class="logo-icon">⚔</div>
+      <div class="logo-text">
+        <h1>Seeding // Match Gen</h1>
+        <p>STRONGEST vs WEAKEST · ORDER RANDOMIZED</p>
+      </div>
+    </div>
+
+    <div class="topbar-status">
+      <div class="status-dot" id="topStatusDot"></div>
+      <span id="topStatusText">Initializing…</span>
+    </div>
+
+    <button id="backBtn" class="back-btn" title="Go back (shortcut: 0)">
+      ⟵ Back
+    </button>
+  </header>
+
+  <main class="container">
+
+    <!-- SECTION 1: Source -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-num">01</div>
+        <div class="section-title">Ranking Source</div>
+        <div class="section-line"></div>
+      </div>
+      <div class="card">
+        <p class="hint">Reads <code>file/ranking.xlsx</code> — columns used: <code>Team</code>, <code>Points</code>, <code>Tier</code>, <code>Region</code>.</p>
+
+        <div id="loadState" class="load-state">
+          <div class="spinner"></div>
+          <span>Loading ranking from Excel…</span>
+        </div>
+
+        <details class="fallback" id="fallbackBox">
+          <summary>Can't read the Excel? Paste manually</summary>
+          <div class="fallback-body">
+            <p class="hint">Format: <code>Team Name;Points</code> (one per line, separator ";" or ",")</p>
+            <textarea id="manualInput" placeholder="Team A;105&#10;Team B;90&#10;Team C;60"></textarea>
+            <div class="row">
+              <button id="useManual" class="btn">Use pasted data</button>
+              <span id="manualStatus" class="hint" style="margin:0"></span>
+            </div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- SECTION 2: Pick teams -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-num">02</div>
+        <div class="section-title">Select Teams</div>
+        <div class="section-line"></div>
+      </div>
+      <div class="card">
+        <div class="row">
+          <div class="field">
+            <label for="filter">Search / Filter</label>
+            <input id="filter" type="text" placeholder="Type to filter…" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="regionFilter">Region</label>
+            <select id="regionFilter">
+              <option value="">All Regions</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="tierFilter">Tier</label>
+            <select id="tierFilter">
+              <option value="">All Tiers</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field grow">
+            <label for="bulkNames">Paste list (one name per line)</label>
+            <textarea id="bulkNames" placeholder="Paste team names to auto-select…"></textarea>
+          </div>
+        </div>
+
+        <div class="quick-actions">
+          <button id="applyBulk" class="btn">Select pasted</button>
+          <button id="selectAll" class="btn green">Select all</button>
+          <button id="clearSel" class="btn danger">Clear selection</button>
+          <span id="selCount" class="selct-count-badge">0 selected</span>
+        </div>
+
+        <div class="list-wrap">
+          <div class="list-head">
+            <span>Teams in ranking</span>
+            <span id="listCount">0 teams</span>
+          </div>
+          <div id="teamList" class="team-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: Generate -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-num">03</div>
+        <div class="section-title">Matches</div>
+        <div class="section-line"></div>
+      </div>
+      <div class="card">
+        <p class="hint">
+          Seeding: <code>#1 vs last · #2 vs second-to-last</code> etc.
+          Match order is <code>shuffled</code>. Sides are <code>randomized</code>.
+          One team per match highlighted in <span style="color:#ff8fa3">wine</span>.
+          Odd count → BYE.
+        </p>
+
+        <div class="quick-actions">
+          <button id="generate" class="btn primary">⚡ Generate Matches</button>
+          <button id="regenerate" class="btn" disabled>↺ Regenerate</button>
+          <button id="analyzeBtn" class="btn ai" disabled>◈ AI Analysis</button>
+          <button id="copy" class="btn" disabled>⎘ Copy</button>
+          <button id="download" class="btn" disabled>↓ Download .txt</button>
+        </div>
+        <div id="genInfo" class="gen-info"></div>
+
+        <div class="dual-grid">
+          <div class="panel">
+            <div class="panel-title"><span></span>Selected — sorted by points</div>
+            <div id="selectedTable" class="selected-table">—</div>
+          </div>
+          <div class="panel">
+            <div class="panel-title"><span></span>Matches — random order</div>
+            <div id="matchups" class="matchups">
+              <div style="color:var(--muted); font-family:var(--mono); font-size:12px; padding:8px;">Generate matches to see them here.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI ANALYSIS PANEL -->
+        <div class="ai-panel" id="aiPanel">
+          <div class="ai-header">
+            <span>◈ Match Intelligence Report</span>
+            <button class="btn danger" id="closeAI" style="padding:5px 10px; font-size:11px;">✕ Close</button>
+          </div>
+          <div class="ai-body">
+            <div class="analysis-grid" id="aiStats"></div>
+            <div class="divider"></div>
+            <div class="panel-title" style="margin-bottom:12px"><span></span>Match-by-match analysis</div>
+            <div class="match-analysis" id="aiMatchAnalysis"></div>
+            <div class="divider"></div>
+            <div class="panel-title" style="margin-bottom:12px"><span></span>Insights</div>
+            <div class="insight-list" id="aiInsights"></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    Shortcut: press <kbd>0</kbd> (outside inputs) to return to <code>index.html</code>.
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script>
+  const RANKING_PATH = 'file/ranking.xlsx';
+
+  const els = {
+    loadState: document.getElementById('loadState'),
+    fallbackBox: document.getElementById('fallbackBox'),
+    manualInput: document.getElementById('manualInput'),
+    useManual: document.getElementById('useManual'),
+    manualStatus: document.getElementById('manualStatus'),
+    filter: document.getElementById('filter'),
+    regionFilter: document.getElementById('regionFilter'),
+    tierFilter: document.getElementById('tierFilter'),
+    bulkNames: document.getElementById('bulkNames'),
+    applyBulk: document.getElementById('applyBulk'),
+    selectAll: document.getElementById('selectAll'),
+    clearSel: document.getElementById('clearSel'),
+    selCount: document.getElementById('selCount'),
+    listCount: document.getElementById('listCount'),
+    teamList: document.getElementById('teamList'),
+    generate: document.getElementById('generate'),
+    regenerate: document.getElementById('regenerate'),
+    analyzeBtn: document.getElementById('analyzeBtn'),
+    copy: document.getElementById('copy'),
+    download: document.getElementById('download'),
+    genInfo: document.getElementById('genInfo'),
+    selectedTable: document.getElementById('selectedTable'),
+    matchups: document.getElementById('matchups'),
+    aiPanel: document.getElementById('aiPanel'),
+    aiStats: document.getElementById('aiStats'),
+    aiMatchAnalysis: document.getElementById('aiMatchAnalysis'),
+    aiInsights: document.getElementById('aiInsights'),
+    closeAI: document.getElementById('closeAI'),
+    backBtn: document.getElementById('backBtn'),
+    topStatusDot: document.getElementById('topStatusDot'),
+    topStatusText: document.getElementById('topStatusText'),
+  };
+
+  let ranking = [];         // [{team, points, seed, tier, region}]
+  let selected = new Set();
+  let lastOutputText = '';
+  let lastMatches = [];
+  let lastTeams = [];
+
+  function normalizeStr(s){ return (s ?? '').toString().trim(); }
+
+  function parseNumber(v){
+    if (typeof v === 'number') return v;
+    if (v === null || v === undefined) return 0;
+    const s = v.toString().replace(/\s/g,'').replace(',','.');
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function sortRanking(arr){
+    return arr.slice().sort((a,b)=>{
+      if (b.points !== a.points) return b.points - a.points;
+      return a.team.localeCompare(b.team,'en',{sensitivity:'base'});
+    });
+  }
+
+  function isTypingTarget(el){
+    if (!el) return false;
+    const tag = (el.tagName||'').toLowerCase();
+    return tag==='input'||tag==='textarea'||tag==='select'||el.isContentEditable;
+  }
+
+  function escapeHtml(str){
+    return (str||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+  }
+
+  function setTopStatus(ok, text){
+    els.topStatusDot.className = 'status-dot' + (ok ? '' : ' red');
+    els.topStatusText.textContent = text;
+  }
+
+  function setLoadedState(ok, msg){
+    els.loadState.className = 'load-state ' + (ok ? 'ok' : 'err');
+    els.loadState.innerHTML = (ok ? '✓' : '✗') + ' ' + escapeHtml(msg);
+    setTopStatus(ok, ok ? `${ranking.length} teams loaded` : 'Load error');
+  }
+
+  function updateSelCount(){ els.selCount.textContent = `${selected.size} selected`; }
+
+  function getTierClass(tier){
+    if (!tier) return '';
+    const t = tier.toString().toLowerCase();
+    if (t.includes('1')) return 't1';
+    if (t.includes('2')) return 't2';
+    return 't3';
+  }
+
+  function populateFilters(){
+    const regions = [...new Set(ranking.map(r=>r.region).filter(Boolean))].sort();
+    const tiers = [...new Set(ranking.map(r=>r.tier).filter(Boolean))].sort();
+    els.regionFilter.innerHTML = '<option value="">All Regions</option>' + regions.map(r=>`<option>${escapeHtml(r)}</option>`).join('');
+    els.tierFilter.innerHTML = '<option value="">All Tiers</option>' + tiers.map(t=>`<option>${escapeHtml(t)}</option>`).join('');
+  }
+
+  function renderTeamList(){
+    const f = normalizeStr(els.filter.value).toLowerCase();
+    const reg = els.regionFilter.value;
+    const tier = els.tierFilter.value;
+    const frag = document.createDocumentFragment();
+    let visible = 0;
+
+    for (const row of ranking){
+      if (f && !row.team.toLowerCase().includes(f)) continue;
+      if (reg && row.region !== reg) continue;
+      if (tier && row.tier !== tier) continue;
+      visible++;
+
+      const item = document.createElement('div');
+      item.className = 'team-item';
+
+      const left = document.createElement('div');
+      left.className = 'team-left';
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = selected.has(row.team);
+      cb.addEventListener('change', ()=>{
+        if (cb.checked) selected.add(row.team); else selected.delete(row.team);
+        updateSelCount();
+      });
+
+      const info = document.createElement('div');
+      const regionHtml = row.region ? `<span class="region-badge">${escapeHtml(row.region)}</span>` : '';
+      const tierHtml = row.tier ? `<span class="tier-badge ${getTierClass(row.tier)}">${escapeHtml(row.tier)}</span>` : '';
+      info.innerHTML = `<div class="team-name">${escapeHtml(row.team)}</div><div class="team-pts">${row.points.toFixed ? row.points.toFixed(2) : row.points} pts ${regionHtml} ${tierHtml}</div>`;
+
+      left.appendChild(cb);
+      left.appendChild(info);
+
+      const seed = document.createElement('div');
+      seed.className = 'seed-badge';
+      seed.textContent = `#${row.seed}`;
+
+      item.appendChild(left);
+      item.appendChild(seed);
+      frag.appendChild(item);
+    }
+
+    els.teamList.innerHTML = '';
+    els.teamList.appendChild(frag);
+    els.listCount.textContent = `${visible} of ${ranking.length} teams`;
+    if (visible === 0){
+      els.teamList.innerHTML = '<div style="color:var(--muted); font-family:var(--mono); font-size:12px; padding:12px;">No teams match this filter.</div>';
+    }
+  }
+
+  function parseManualLines(text){
+    const lines = (text||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+    const out = [];
+    for (const line of lines){
+      const parts = line.includes(';') ? line.split(';') : line.split(',');
+      if (parts.length < 2) continue;
+      const team = normalizeStr(parts[0]);
+      const points = parseNumber(parts.slice(1).join('.'));
+      if (team) out.push({team, points, tier:'', region:''});
+    }
+    return out;
+  }
+
+  function applyBulkNames(){
+    const names = (els.bulkNames.value||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    const setLower = new Set(names.map(n=>n.toLowerCase()));
+    let matched = 0;
+    for (const row of ranking){
+      if (setLower.has(row.team.toLowerCase()) && !selected.has(row.team)){
+        selected.add(row.team); matched++;
+      }
+    }
+    updateSelCount(); renderTeamList();
+    els.genInfo.textContent = matched ? `✓ Selected ${matched} matching name(s).` : '⚠ No pasted name matched the ranking.';
+  }
+
+  function selectAllVisible(){
+    const f = normalizeStr(els.filter.value).toLowerCase();
+    const reg = els.regionFilter.value;
+    const tier = els.tierFilter.value;
+    for (const row of ranking){
+      if (f && !row.team.toLowerCase().includes(f)) continue;
+      if (reg && row.region !== reg) continue;
+      if (tier && row.tier !== tier) continue;
+      selected.add(row.team);
+    }
+    updateSelCount(); renderTeamList();
+    els.genInfo.textContent = `✓ Selected all visible teams (${selected.size} total).`;
+  }
+
+  function clearSelection(){
+    selected.clear(); updateSelCount(); renderTeamList(); els.genInfo.textContent = '';
+    els.aiPanel.classList.remove('visible');
+  }
+
+  function getSelectedTeamsSorted(){
+    return sortRanking(ranking.filter(r=>selected.has(r.team)));
+  }
+
+  function renderSelectedTable(teams){
+    let txt = '';
+    teams.forEach((t,i)=>{
+      txt += `${String(i+1).padStart(2,'0')}  ${t.team.padEnd(28,' ')}  ${(t.points+'').padStart(10,' ')}\n`;
+    });
+    els.selectedTable.textContent = txt || '—';
+  }
+
+  function renderTeamBox(seed, t, wine){
+    const box = document.createElement('div');
+    box.className = 'team-box' + (t?'' : ' bye') + (wine ? ' wine' : '');
+    if (t){
+      box.innerHTML = `<span class="tname">#${seed} ${escapeHtml(t.team)}</span><div class="tinfo">${t.points.toFixed ? t.points.toFixed(2) : t.points} pts${t.region ? ' · ' + escapeHtml(t.region) : ''}</div>`;
+    } else {
+      box.innerHTML = `<span class="tname">#${seed} BYE</span><div class="tinfo">no opponent</div>`;
+    }
+    return box;
+  }
+
+  function renderMatches(matches){
+    els.matchups.innerHTML = '';
+    if (!matches.length){
+      els.matchups.innerHTML = '<div style="color:var(--muted); font-family:var(--mono); font-size:12px; padding:8px;">No matches to show.</div>';
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    matches.forEach((m,idx)=>{
+      const div = document.createElement('div');
+      div.className = 'match-card';
+      div.style.animationDelay = `${idx * 40}ms`;
+
+      const hdr = document.createElement('div');
+      hdr.className = 'match-hdr';
+      hdr.innerHTML = `<strong>Match ${idx+1}</strong><span>RANDOMIZED ORDER</span>`;
+
+      const body = document.createElement('div');
+      body.className = 'match-body';
+      body.appendChild(renderTeamBox(m.leftSeed, m.left, m.wineSide==='left'));
+      const vs = document.createElement('div');
+      vs.className = 'vs-badge';
+      vs.textContent = 'VS';
+      body.appendChild(vs);
+      body.appendChild(renderTeamBox(m.rightSeed, m.right, m.wineSide==='right'));
+
+      div.appendChild(hdr);
+      div.appendChild(body);
+      frag.appendChild(div);
+    });
+    els.matchups.appendChild(frag);
+  }
+
+  function buildSeededPairs(teams){
+    const n = teams.length;
+    const pairs = [];
+    for (let i=0; i<Math.ceil(n/2); i++){
+      const strong = teams[i];
+      const weakIndex = n - 1 - i;
+      const weak = weakIndex > i ? teams[weakIndex] : null;
+      pairs.push({ strongSeed:i+1, weakSeed:weakIndex+1, strong, weak });
+    }
+    return pairs;
+  }
+
+  function shuffleInPlace(arr){
+    for (let i=arr.length-1; i>0; i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [arr[i],arr[j]] = [arr[j],arr[i]];
+    }
+    return arr;
+  }
+
+  function buildMatchesRandomSidesAndWine(pairs){
+    const matches = pairs.map(p=>{
+      const swap = p.weak && Math.random()<0.5;
+      const left = swap ? p.weak : p.strong;
+      const right = swap ? p.strong : p.weak;
+      const leftSeed = swap ? p.weakSeed : p.strongSeed;
+      const rightSeed = swap ? p.strongSeed : p.weakSeed;
+      const wineSide = (left && right) ? (Math.random()<0.5 ? 'left' : 'right') : null;
+      return { left, right, leftSeed, rightSeed, wineSide };
+    });
+    return shuffleInPlace(matches);
+  }
+
+  function buildOutputText(teams, matches){
+    const lines = [`Generated Matches (seeded strong vs weak) — ${teams.length} teams`, ''];
+    matches.forEach((m,idx)=>{
+      const L = m.left ? `${m.left.team} (${m.left.points})` : 'BYE';
+      const R = m.right ? `${m.right.team} (${m.right.points})` : 'BYE';
+      const wineNote = m.wineSide ? ` [wine: ${m.wineSide}]` : '';
+      lines.push(`Match ${idx+1}: #${m.leftSeed} ${L}  vs  #${m.rightSeed} ${R}${wineNote}`);
+    });
+    return lines.join('\n');
+  }
+
+  // ── AI ANALYSIS ──────────────────────────────────────────────────────────────
+  function buildAIAnalysis(teams, matches){
+    const realMatches = matches.filter(m => m.left && m.right);
+    const pointsDiffs = realMatches.map(m => Math.abs(m.left.points - m.right.points));
+    const maxDiff = Math.max(...pointsDiffs);
+    const minDiff = Math.min(...pointsDiffs);
+    const avgDiff = pointsDiffs.reduce((a,b)=>a+b,0) / (pointsDiffs.length || 1);
+    const topTeam = teams[0];
+    const bottomTeam = teams[teams.length-1];
+    const totalSpread = teams.length > 1 ? topTeam.points - bottomTeam.points : 0;
+
+    // Tier distribution
+    const tierCounts = {};
+    teams.forEach(t=>{
+      const tier = t.tier || 'Unknown';
+      tierCounts[tier] = (tierCounts[tier]||0) + 1;
+    });
+
+    // Region distribution
+    const regionCounts = {};
+    teams.forEach(t=>{
+      const r = t.region || 'Unknown';
+      regionCounts[r] = (regionCounts[r]||0) + 1;
+    });
+
+    // Identify upset potential: matches where point gap < 20% of total spread
+    const upsetThreshold = totalSpread * 0.15;
+    const tossupThreshold = totalSpread * 0.07;
+
+    // STATS
+    const stats = [
+      { label:'Total Matches', value: matches.length, sub: `${matches.filter(m=>!m.right).length} BYE(s)`, class:'' },
+      { label:'Avg Point Gap', value: avgDiff.toFixed(1), sub: 'per match', class:'' },
+      { label:'Largest Gap', value: maxDiff.toFixed(1), sub: 'most predictable', class:'' },
+      { label:'Smallest Gap', value: minDiff.toFixed(1), sub: 'closest match', class:'hot' },
+    ];
+
+    els.aiStats.innerHTML = stats.map(s=>`
+      <div class="stat-card">
+        <div class="stat-label">${s.label}</div>
+        <div class="stat-value ${s.class}">${s.value}</div>
+        <div class="stat-sub">${s.sub}</div>
+      </div>
+    `).join('');
+
+    // MATCH ANALYSIS
+    // Find original seeding order (unshuffled) of this match for context
+    const matchRows = realMatches.map(m=>{
+      const a = m.left, b = m.right;
+      const seedA = Math.min(a.seed ?? m.leftSeed, b.seed ?? m.rightSeed);
+      const seedB = Math.max(a.seed ?? m.leftSeed, b.seed ?? m.rightSeed);
+      const diff = Math.abs(a.points - b.points);
+      const pct = totalSpread > 0 ? diff / totalSpread : 0;
+
+      let tagClass, tagText;
+      if (diff <= tossupThreshold) { tagClass = 'tossup'; tagText = 'TOSS-UP'; }
+      else if (diff <= upsetThreshold) { tagClass = 'upset'; tagText = 'UPSET RISK'; }
+      else { tagClass = 'predicted'; tagText = 'CLEAR FAV'; }
+
+      const higher = a.points >= b.points ? a : b;
+      const lower = a.points >= b.points ? b : a;
+
+      return { a, b, diff, pct, tagClass, tagText, higher, lower };
+    });
+
+    const sorted = matchRows.slice().sort((a,b) => a.diff - b.diff); // show closest first
+
+    els.aiMatchAnalysis.innerHTML = sorted.map((m,i)=>`
+      <div class="ma-row">
+        <div class="ma-num">Match ${i+1}</div>
+        <div class="ma-teams"><strong>${escapeHtml(m.higher.team)}</strong> vs ${escapeHtml(m.lower.team)}</div>
+        <div class="ma-bar-wrap">
+          <div class="ma-bar"><div class="ma-bar-fill" style="width:${Math.max(5, m.pct * 100).toFixed(1)}%"></div></div>
+        </div>
+        <div class="ma-delta">Δ ${m.diff.toFixed(1)}</div>
+        <span class="ma-tag ${m.tagClass}">${m.tagText}</span>
+      </div>
+    `).join('');
+
+    // INSIGHTS
+    const insights = [];
+    const upsets = matchRows.filter(m=>m.tagClass==='upset').length;
+    const tossups = matchRows.filter(m=>m.tagClass==='tossup').length;
+    const predicted = matchRows.filter(m=>m.tagClass==='predicted').length;
+
+    if (tossups > 0){
+      insights.push({type:'warn', icon:'⚡', text:`<strong>${tossups} toss-up match(es)</strong> detected — point gap under ${(tossupThreshold).toFixed(1)} pts. Expect surprising results.`});
+    }
+    if (upsets > 0){
+      insights.push({type:'warn', icon:'🎯', text:`<strong>${upsets} upset-risk match(es)</strong> — competitive enough that lower-seeded teams have a real shot.`});
+    }
+    if (predicted > 0){
+      insights.push({type:'ok', icon:'✓', text:`<strong>${predicted} match(es)</strong> heavily favor the higher seed. Results likely predictable.`});
+    }
+    if (topTeam && bottomTeam){
+      insights.push({type:'info', icon:'📊', text:`Point spread across all selected teams: <strong>${totalSpread.toFixed(1)} pts</strong> (${escapeHtml(topTeam.team)} → ${escapeHtml(bottomTeam.team)}).`});
+    }
+
+    // Region diversity
+    const regions = Object.keys(regionCounts);
+    if (regions.length > 1){
+      insights.push({type:'info', icon:'🌍', text:`Multi-region bracket: ${regions.map(r=>`<strong>${r}</strong> (${regionCounts[r]})`).join(', ')} — cross-region matchups possible.`});
+    }
+
+    // Streak info from ranking data
+    const highStreak = teams.filter(t => (t.streak||0) >= 3);
+    if (highStreak.length){
+      insights.push({type:'warn', icon:'🔥', text:`<strong>${highStreak.length} team(s)</strong> on a win streak of 3+: ${highStreak.map(t=>escapeHtml(t.team)).join(', ')}.`});
+    }
+
+    els.aiInsights.innerHTML = insights.map(i=>`
+      <div class="insight ${i.type}">
+        <span class="insight-icon">${i.icon}</span>
+        <div>${i.text}</div>
+      </div>
+    `).join('') || '<div class="insight info"><span class="insight-icon">ℹ</span><div>No significant insights — bracket looks balanced.</div></div>';
+
+    els.aiPanel.classList.add('visible');
+    setTimeout(()=>els.aiPanel.scrollIntoView({behavior:'smooth', block:'nearest'}), 100);
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  function generate(){
+    const teams = getSelectedTeamsSorted();
+    if (teams.length < 2){ els.genInfo.textContent = '⚠ Select at least 2 teams.'; return; }
+    const pairs = buildSeededPairs(teams);
+    const matches = buildMatchesRandomSidesAndWine(pairs);
+    lastTeams = teams;
+    lastMatches = matches;
+
+    renderSelectedTable(teams);
+    renderMatches(matches);
+
+    lastOutputText = buildOutputText(teams, matches);
+    els.copy.disabled = false;
+    els.download.disabled = false;
+    els.regenerate.disabled = false;
+    els.analyzeBtn.disabled = false;
+
+    const byeCount = teams.length % 2 === 1 ? 1 : 0;
+    els.genInfo.textContent = `✓ Generated ${matches.length} match(es)` + (byeCount ? ' · 1 BYE.' : '.');
+    els.aiPanel.classList.remove('visible');
+  }
+
+  function findColumnKey(obj, wanted){
+    const keys = Object.keys(obj);
+    const lower = wanted.toLowerCase();
+    for (const k of keys) if (k.toLowerCase()===lower) return k;
+    for (const k of keys) if (k.toLowerCase().includes(lower)) return k;
+    return null;
+  }
+
+  async function loadRankingFromXlsx(){
+    if (!window.XLSX) throw new Error('XLSX library did not load.');
+    const res = await fetch(RANKING_PATH, {cache:'no-store'});
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+    if (!rows.length) throw new Error('Empty sheet.');
+
+    const teamKey = findColumnKey(rows[0], 'Team');
+    const pointsKey = findColumnKey(rows[0], 'Points');
+    if (!teamKey || !pointsKey) throw new Error('Could not find Team and Points columns.');
+
+    const tierKey = findColumnKey(rows[0], 'Tier');
+    const regionKey = findColumnKey(rows[0], 'Region');
+    const streakKey = findColumnKey(rows[0], 'Streak');
+
+    const data = [];
+    for (const r of rows){
+      const team = normalizeStr(r[teamKey]);
+      if (!team) continue;
+      data.push({
+        team,
+        points: parseNumber(r[pointsKey]),
+        tier: tierKey ? normalizeStr(r[tierKey]) : '',
+        region: regionKey ? normalizeStr(r[regionKey]) : '',
+        streak: streakKey ? parseNumber(r[streakKey]) : 0,
+      });
+    }
+
+    const sorted = sortRanking(data);
+    sorted.forEach((t,i) => t.seed = i+1);
+    return sorted;
+  }
+
+  async function init(){
+    els.backBtn.addEventListener('click', ()=> window.location.href = 'index.html');
+    document.addEventListener('keydown', e=>{
+      if (e.key==='0' && !isTypingTarget(document.activeElement)){
+        e.preventDefault(); window.location.href = 'index.html';
+      }
+    });
+
+    els.filter.addEventListener('input', renderTeamList);
+    els.regionFilter.addEventListener('change', renderTeamList);
+    els.tierFilter.addEventListener('change', renderTeamList);
+    els.applyBulk.addEventListener('click', applyBulkNames);
+    els.selectAll.addEventListener('click', selectAllVisible);
+    els.clearSel.addEventListener('click', clearSelection);
+    els.generate.addEventListener('click', generate);
+    els.regenerate.addEventListener('click', generate);
+
+    els.analyzeBtn.addEventListener('click', ()=>{
+      if (lastMatches.length) buildAIAnalysis(lastTeams, lastMatches);
+    });
+    els.closeAI.addEventListener('click', ()=> els.aiPanel.classList.remove('visible'));
+
+    els.copy.addEventListener('click', async ()=>{
+      try{
+        await navigator.clipboard.writeText(lastOutputText);
+        els.genInfo.textContent = '✓ Copied to clipboard!';
+      } catch { els.genInfo.textContent = '⚠ Could not copy automatically.'; }
+    });
+
+    els.download.addEventListener('click', ()=>{
+      const blob = new Blob([lastOutputText], {type:'text/plain;charset=utf-8'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'matches.txt';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+    });
+
+    els.useManual.addEventListener('click', ()=>{
+      const data = parseManualLines(els.manualInput.value);
+      if (data.length < 2){ els.manualStatus.textContent = '⚠ Paste at least 2 valid lines.'; return; }
+      ranking = sortRanking(data).map((t,i)=>({...t, seed:i+1}));
+      setLoadedState(true, `Using pasted data (${ranking.length} teams).`);
+      els.manualStatus.textContent = `✓ ${ranking.length} loaded.`;
+      populateFilters(); renderTeamList(); updateSelCount();
+    });
+
+    try{
+      ranking = await loadRankingFromXlsx();
+      setLoadedState(true, `Loaded ${ranking.length} teams from ${RANKING_PATH}.`);
+      els.fallbackBox.open = false;
+    } catch(err){
+      console.warn(err);
+      setLoadedState(false, `Failed to read ${RANKING_PATH}: ${err.message}. Use manual paste below.`);
+      els.fallbackBox.open = true;
+    }
+
+    populateFilters(); updateSelCount(); renderTeamList();
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

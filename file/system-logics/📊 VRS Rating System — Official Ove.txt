@@ -1,0 +1,189 @@
+📊 VRS Rating System — Official Overview
+1. Objetivo do sistema
+O VRS Rating System foi criado para:
+
+Medir a força real dos times ao longo do tempo
+Recompensar consistência, não apenas vitórias isoladas
+Evitar inflação de pontos e snowball irreversível
+Manter histórico permanente entre temporadas
+Permitir simulações confiáveis de resultados futuros
+
+O sistema é baseado em Elo, com extensões controladas para:
+
+Streak (sequência de vitórias)
+Bônus temporários de torneio
+Reset sazonal com compressão e prestige
+
+
+2. Estrutura base do ranking
+Cada time possui, no mínimo, os seguintes atributos:
+
+Points → valor principal do ranking (base Elo)
+Victories / Loses → estatísticas da temporada
+Streak → sequência atual de vitórias
+Tier → classificação visual derivada dos pontos
+Region → região competitiva
+Majors / Trophies → conquistas permanentes
+Prestige → histórico acumulado entre temporadas
+
+⚠️ Importante:
+Tier, posição e status visual nunca influenciam os cálculos.
+Eles são apenas consequência dos pontos.
+
+3. Sistema de pontos (Elo)
+A atualização de pontos segue o Elo clássico:
+Points = K_final x (resultado - Expectativa)
+
+Onde:
+Resultado (S):
+
+Vitória = 1
+Derrota = 0
+Empate (quando aplicável) = 0.5
+
+Expectativa (E):
+Calculada a partir da diferença de pontos entre os times
+
+Isso garante que:
+Vencer times mais fortes rende mais pontos
+Perder para times mais fracos custa mais pontos
+
+4. K dinâmico (coração do sistema)
+O valor K define o impacto de cada partida.
+No VRS, ele não é fixo.
+Fórmula geral:
+K_final = K_BASE x (1 + streakBonus) x (1 + tournamentBonus)
+Com limites rígidos para segurança.
+Valores base:
+K_BASE = 30
+Hard cap: K ≤ 1.35 × K_BASE
+
+5. Lógica de Streak (sequência de vitórias)
+Princípio
+A streak não adiciona pontos fixos.
+Ela aumenta o impacto das partidas, tanto para ganho quanto para perda.
+Fórmula do bônus de streak:
+streakBonus = 0.10 x tanh(streak / 5)
+Propriedades importantes:
+
+Crescimento rápido no início
+Saturação progressiva
+Bônus máximo: +10% no K
+Nunca explode, mesmo com streaks longas
+
+Consequência prática:
+Times “em alta” ganham mais pontos ao vencer
+Mas perdem mais ao perder
+Ao perder, a streak volta a 0 imediatamente
+
+✅ Isso recompensa consistência
+✅ Mas mantém risco proporcional
+
+
+
+6. Bônus de torneio (temporário)
+Vitórias em torneios não dão pontos diretos.
+Elas ativam um bônus temporário no K, válido por um número limitado de partidas:
+Tipo de Torneio           Bonus no K              Duração
+Reginal                     +5%                      5 jogos
+Global                      +10%                     8 jogos
+Major                       +20%                     12 jogos
+
+Regras:
+O bônus afeta apenas o K
+É consumido jogo a jogo
+Ao acabar, o K volta ao normal
+Também está sujeito ao hard cap
+
+7. Atualização de streak e estatísticas
+Após cada partida:
+Vitória
+Victories +1
+Streak +1
+
+Derrota
+Loses +1
+Streak = 0
+
+Empate
+Streak = 0 para ambos
+
+Majors, Trophies e Prestige não são afetados por partidas comuns.
+
+8. Tier (classificação visual)
+O Tier é derivado exclusivamente dos pontos:
+
+Tier S >= 1700
+Tier 1 >= 1400
+Tier 2 >= 1100
+Tier 3 > 1100
+
+⚠️ Tier:
+Não influencia partidas
+Não altera K
+Não altera expectativa
+É apenas informativo
+
+9. Season Reset (reset de temporada)
+O reset é global e controlado.
+Fórmula fixa:
+newPoints = 1000 + (oldPoints - 1000) x 0.35
+
+Efeitos do reset:
+Points → comprimidos
+Victories = 0
+Loses = 0
+Streak = 0
+Bônus temporários removidos
+Prestige += oldPoints
+Majors e Trophies permanecem
+
+✅ O ranking “respira”
+✅ A hierarquia se mantém
+✅ O histórico não é perdido
+
+
+10. Prestige (histórico permanente)
+Prestige representa:
+
+Tudo que o time construiu ao longo da história
+Independente de resets
+
+Ele não influencia partidas
+Serve como:
+
+Registro histórico
+Critério secundário de legado
+Diferencial visual e narrativo
+
+
+11. Match Predictor (simulação)
+O Match Predictor usa exatamente a mesma lógica real do sistema para:
+
+Calcular expectativa Elo
+Aplicar K dinâmico (streak + bônus)
+Simular vitória ou derrota
+Mostrar:
+
+Δ de pontos
+Nova posição
+Subida, queda ou manutenção no ranking
+
+
+
+✅ Não é estimativa arbitrária
+✅ É uma simulação fiel do sistema real
+
+12. Filosofia geral do sistema
+O VRS foi desenhado para:
+
+✅ Premiar constância, não sorte
+✅ Manter risco sempre presente
+✅ Evitar inflação de pontos
+✅ Permitir resets sem apagar história
+✅ Ser previsível, auditável e justo
+
+
+13. Resumo em uma frase
+
+O VRS Rating System é um Elo avançado, com K dinâmico controlado por streak e bônus temporários, resets sazonais com compressão e um histórico permanente via prestige — equilibrando competitividade, longevidade e justiça.

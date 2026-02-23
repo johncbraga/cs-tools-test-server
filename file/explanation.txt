@@ -1,0 +1,34 @@
+OLD.xlsx
+Stage 1
+
+ranking.xlsx
+Stage 2 [0:0]
+
+
+RANKINGS:
+ranking 0 [Season 0] : Base
+ranking 1 [Season 0] : America Open Qualifier
+ranking 2 [Season 0] : Europe Open Qualifier
+ranking 3 [Season 0] : Asia Open Qualifier
+ranking 4 [Season 0] : Americas RMRs
+ranking 5 [Season 0] : Europe RMRs
+ranking 6 [Season 0] : Asia RMRs
+ranking 7 [Season 0] : Global RMR
+ranking 8 [Season 0] : Second Chance RMR
+ranking 9 [Season 0] : 
+ranking 10 [Season 0] : 
+ranking n [Season 0] : 
+ranking n [Season 0] : 
+ranking n [Season 0] : 
+ranking n [Season 0] : 
+ranking n [Season 0] : 
+ranking n [Season 0] : 
+ranking n [Season 0] : 
+
+
+
+
+
+
+Obs:
+Em "archives" salvar também o histórico as partidas antigas, pois a cada Season, um novo excel será puxado do 0

@@ -1,0 +1,882 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#030712" />
+  <title>Portal • Tools</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #030712;
+      --surface: #0a1628;
+      --surface2: #0d1f3c;
+      --border: rgba(255,255,255,0.07);
+      --border-hover: rgba(255,255,255,0.18);
+      --text: #f0f4ff;
+      --muted: #5a6a85;
+      --accent1: #3b82f6;
+      --accent2: #8b5cf6;
+      --accent3: #06b6d4;
+      --accent4: #10b981;
+      --accent5: #f59e0b;
+      --accent6: #ef4444;
+      --accent7: #ec4899;
+      --mono: 'Space Mono', monospace;
+      --display: 'Syne', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: var(--display);
+      color: var(--text);
+      background: var(--bg);
+      overflow-x: hidden;
+    }
+
+    /* Animated background */
+    .bg-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.12;
+      animation: drift 20s ease-in-out infinite alternate;
+    }
+
+    .orb-1 { width: 700px; height: 700px; background: #3b82f6; top: -20%; left: -10%; animation-delay: 0s; }
+    .orb-2 { width: 500px; height: 500px; background: #8b5cf6; top: 30%; right: -10%; animation-delay: -7s; }
+    .orb-3 { width: 400px; height: 400px; background: #06b6d4; bottom: -10%; left: 30%; animation-delay: -14s; }
+
+    @keyframes drift {
+      from { transform: translate(0, 0) scale(1); }
+      to { transform: translate(40px, 30px) scale(1.08); }
+    }
+
+    /* Scanline texture */
+    .bg-canvas::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.03) 2px,
+        rgba(0,0,0,0.03) 4px
+      );
+    }
+
+    /* Grid dots */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* Layout */
+    .wrap {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 0 24px 40px;
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      padding: 32px 0 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .logo-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent1);
+      box-shadow: 0 0 10px var(--accent1);
+      animation: pulse 2s ease infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    .logo-text {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-size: clamp(36px, 5vw, 56px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      background: linear-gradient(135deg, #f0f4ff 0%, #7ca6f0 60%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      max-width: 60ch;
+    }
+
+    .last-match {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .last-match-label {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .match-pill {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      background: rgba(59, 130, 246, 0.08);
+      color: #93bbfc;
+    }
+
+    /* Shortcut bar */
+    .shortcut-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .sc-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      margin-right: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .sc-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      transition: 0.2s;
+      cursor: default;
+    }
+
+    .sc-item:hover {
+      color: var(--text);
+      border-color: var(--border-hover);
+      background: rgba(255,255,255,0.07);
+    }
+
+    .sc-item kbd {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--accent1);
+      background: rgba(59, 130, 246, 0.12);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border) 20%, var(--border) 80%, transparent);
+      margin: 0 0 32px;
+    }
+
+    /* Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    /* Wide card spans 2 columns for financial */
+    .card--wide {
+      grid-column: span 3;
+    }
+
+    @media (max-width: 860px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+      .card--wide { grid-column: span 2; }
+    }
+
+    @media (max-width: 560px) {
+      .grid { grid-template-columns: 1fr; }
+      .card--wide { grid-column: span 1; }
+    }
+
+    /* Cards */
+    .card {
+      position: relative;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: linear-gradient(145deg, var(--surface) 0%, var(--surface2) 100%);
+      overflow: hidden;
+      transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1), border-color 0.2s, box-shadow 0.25s;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    .card:nth-child(1) { animation-delay: 0.05s; }
+    .card:nth-child(2) { animation-delay: 0.10s; }
+    .card:nth-child(3) { animation-delay: 0.15s; }
+    .card:nth-child(4) { animation-delay: 0.20s; }
+    .card:nth-child(5) { animation-delay: 0.25s; }
+    .card:nth-child(6) { animation-delay: 0.30s; }
+    .card:nth-child(7) { animation-delay: 0.35s; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--card-glow, transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      border-color: var(--card-accent, rgba(255,255,255,0.2));
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px var(--card-accent, transparent), 0 -1px 0 0 rgba(255,255,255,0.08) inset;
+    }
+
+    .card:hover::before {
+      opacity: 1;
+    }
+
+    /* Accent line top */
+    .card-line {
+      height: 2px;
+      background: var(--card-accent-color, var(--accent1));
+      border-radius: 2px 2px 0 0;
+      opacity: 0.7;
+    }
+
+    .inner {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 180px;
+    }
+
+    .card--wide .inner {
+      min-height: auto;
+      flex-direction: row;
+      align-items: center;
+      padding: 22px 24px;
+      gap: 24px;
+    }
+
+    .card--wide .inner .topline {
+      flex: 1;
+    }
+
+    .topline {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .icon {
+      width: 42px; height: 42px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .card-info { flex: 1; }
+
+    .title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-bottom: 4px;
+    }
+
+    .desc {
+      font-size: 12px;
+      font-family: var(--mono);
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* Tags */
+    .tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 5px;
+      border: 1px solid var(--card-accent, rgba(255,255,255,0.1));
+      color: var(--card-accent-text, var(--muted));
+      background: var(--card-accent-bg, rgba(255,255,255,0.03));
+    }
+
+    .cta {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .card--wide .cta {
+      margin-top: 0;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .btn {
+      text-decoration: none;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 9px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border-hover);
+      background: rgba(255,255,255,0.06);
+      transition: 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.3);
+    }
+
+    .btn--accent {
+      background: rgba(59, 130, 246, 0.15);
+      border-color: rgba(59, 130, 246, 0.4);
+      color: #93bbfc;
+    }
+
+    .btn--accent:hover {
+      background: rgba(59, 130, 246, 0.25);
+    }
+
+    .shortcut-hint {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .shortcut-hint kbd {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 5px;
+      border: 1px solid var(--border-hover);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+    }
+
+    /* Financial card special styles */
+    .card--financial {
+      --card-accent: rgba(16, 185, 129, 0.4);
+      --card-accent-color: #10b981;
+      --card-glow: linear-gradient(135deg, rgba(16,185,129,0.04), transparent 60%);
+    }
+
+    .fin-stats {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .fin-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .fin-stat-value {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: #10b981;
+      font-family: var(--mono);
+    }
+
+    .fin-stat-value.neg { color: #ef4444; }
+
+    .fin-stat-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* Mini sparklines */
+    .sparklines {
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+      height: 28px;
+    }
+
+    .spark-bar {
+      width: 4px;
+      border-radius: 2px;
+      background: rgba(16, 185, 129, 0.4);
+      transition: 0.2s;
+    }
+
+    .spark-bar.high { background: #10b981; }
+
+    /* Footer */
+    footer {
+      margin-top: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      animation: fadeUp 0.6s ease 0.4s both;
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .update-chip {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .update-chip span {
+      color: var(--accent4);
+    }
+
+    .status-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent4);
+      box-shadow: 0 0 8px var(--accent4);
+      animation: pulse 2s ease infinite;
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    /* Per-card accent overrides */
+    .card:nth-child(1) {
+      --card-accent: rgba(59,130,246,0.4);
+      --card-accent-color: #3b82f6;
+      --card-glow: linear-gradient(135deg, rgba(59,130,246,0.05), transparent 60%);
+      --card-accent-text: #93bbfc;
+      --card-accent-bg: rgba(59,130,246,0.08);
+    }
+    .card:nth-child(2) {
+      --card-accent: rgba(139,92,246,0.4);
+      --card-accent-color: #8b5cf6;
+      --card-glow: linear-gradient(135deg, rgba(139,92,246,0.05), transparent 60%);
+      --card-accent-text: #c4b5fd;
+      --card-accent-bg: rgba(139,92,246,0.08);
+    }
+    .card:nth-child(3) {
+      --card-accent: rgba(6,182,212,0.4);
+      --card-accent-color: #06b6d4;
+      --card-glow: linear-gradient(135deg, rgba(6,182,212,0.05), transparent 60%);
+      --card-accent-text: #67e8f9;
+      --card-accent-bg: rgba(6,182,212,0.08);
+    }
+    .card:nth-child(4) {
+      --card-accent: rgba(245,158,11,0.4);
+      --card-accent-color: #f59e0b;
+      --card-glow: linear-gradient(135deg, rgba(245,158,11,0.05), transparent 60%);
+      --card-accent-text: #fcd34d;
+      --card-accent-bg: rgba(245,158,11,0.08);
+    }
+    .card:nth-child(5) {
+      --card-accent: rgba(239,68,68,0.4);
+      --card-accent-color: #ef4444;
+      --card-glow: linear-gradient(135deg, rgba(239,68,68,0.05), transparent 60%);
+      --card-accent-text: #fca5a5;
+      --card-accent-bg: rgba(239,68,68,0.08);
+    }
+    .card:nth-child(6) {
+      --card-accent: rgba(236,72,153,0.4);
+      --card-accent-color: #ec4899;
+      --card-glow: linear-gradient(135deg, rgba(236,72,153,0.05), transparent 60%);
+      --card-accent-text: #f9a8d4;
+      --card-accent-bg: rgba(236,72,153,0.08);
+    }
+
+    /* Active key highlight */
+    .sc-item.active {
+      color: var(--text);
+      border-color: var(--accent1);
+      background: rgba(59,130,246,0.1);
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-canvas">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+<div class="bg-grid"></div>
+
+<div class="wrap">
+  <header>
+    <div class="header-top">
+      <div>
+        <div class="logo-row">
+          <div class="logo-dot"></div>
+          <span class="logo-text">Portal • KZ Studios</span>
+        </div>
+        <h1>Tools</h1>
+        <div class="subtitle">
+          Main page showing all available tools.
+          <div class="last-match">
+            <span class="last-match-label">LAST MATCH</span>
+            <span class="match-pill">DreamHack Winter 2026 — Stage 2 [Iluminar × Eternal Fire]</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="shortcut-bar" id="scBar">
+        <span class="sc-label">Shortcuts</span>
+        <div class="sc-item" data-key="1"><kbd>1</kbd> HLTV</div>
+        <div class="sc-item" data-key="2"><kbd>2</kbd> VRS</div>
+        <div class="sc-item" data-key="3"><kbd>3</kbd> PRO</div>
+        <div class="sc-item" data-key="4"><kbd>4</kbd> Seeding</div>
+        <div class="sc-item" data-key="5"><kbd>5</kbd> Events</div>
+        <div class="sc-item" data-key="6"><kbd>6</kbd> Database</div>
+        <div class="sc-item" data-key="7"><kbd>7</kbd> Finance</div>
+      </div>
+    </div>
+    <div class="divider"></div>
+  </header>
+
+  <section class="grid">
+
+    <!-- 1: HLTV -->
+    <article class="card">
+      <div class="card-line"></div>
+      <div class="inner">
+        <div class="topline">
+          <div class="icon">🎯</div>
+          <div class="card-info">
+            <div class="title">HLTV</div>
+            <div class="desc">Team statistics dashboards and performance data.</div>
+          </div>
+        </div>
+        <div class="tags">
+          <span class="tag">Statistics</span>
+          <span class="tag">Performance</span>
+          <span class="tag">Dashboards</span>
+        </div>
+        <div class="cta">
+          <a class="btn" href="hltv.html">Open HLTV →</a>
+          <div class="shortcut-hint">Press <kbd>1</kbd></div>
+        </div>
+      </div>
+    </article>
+
+    <!-- 2: VRS -->
+    <article class="card">
+      <div class="card-line"></div>
+      <div class="inner">
+        <div class="topline">
+          <div class="icon">📈</div>
+          <div class="card-info">
+            <div class="title">VRS Rating</div>
+            <div class="desc">Team rating system based on VRS points.</div>
+          </div>
+        </div>
+        <div class="tags">
+          <span class="tag">Ratings</span>
+          <span class="tag">Rankings</span>
+          <span class="tag">Points</span>
+        </div>
+        <div class="cta">
+          <a class="btn" href="vrs.html">Open VRS →</a>
+          <div class="shortcut-hint">Press <kbd>2</kbd></div>
+        </div>
+      </div>
+    </article>
+
+    <!-- 3: PRO -->
+    <article class="card">
+      <div class="card-line"></div>
+      <div class="inner">
+        <div class="topline">
+          <div class="icon">🧠</div>
+          <div class="card-info">
+            <div class="title">PRO Analyses</div>
+            <div class="desc">Advanced comparison and in-depth team analysis.</div>
+          </div>
+        </div>
+        <div class="tags">
+          <span class="tag">Analysis</span>
+          <span class="tag">Comparison</span>
+          <span class="tag">Insights</span>
+        </div>
+        <div class="cta">
+          <a class="btn" href="pro-analyses.html">Open PRO →</a>
+          <div class="shortcut-hint">Press <kbd>3</kbd></div>
+        </div>
+      </div>
+    </article>
+
+    <!-- 4: Seeding -->
+    <article class="card">
+      <div class="card-line"></div>
+      <div class="inner">
+        <div class="topline">
+          <div class="icon">🎲</div>
+          <div class="card-info">
+            <div class="title">Seeding</div>
+            <div class="desc">Random draw and seeding generator.</div>
+          </div>
+        </div>
+        <div class="tags">
+          <span class="tag">Draw</span>
+          <span class="tag">Generator</span>
+          <span class="tag">Bracket</span>
+        </div>
+        <div class="cta">
+          <a class="btn" href="seeding.html">Open Seeding →</a>
+          <div class="shortcut-hint">Press <kbd>4</kbd></div>
+        </div>
+      </div>
+    </article>
+
+    <!-- 5: Events -->
+    <article class="card">
+      <div class="card-line"></div>
+      <div class="inner">
+        <div class="topline">
+          <div class="icon">📅</div>
+          <div class="card-info">
+            <div class="title">Events</div>
+            <div class="desc">Track tournaments and important updates.</div>
+          </div>
+        </div>
+        <div class="tags">
+          <span class="tag">Tournaments</span>
+          <span class="tag">Calendar</span>
+          <span class="tag">Updates</span>
+        </div>
+        <div class="cta">
+          <a class="btn" href="events.html">Open Events →</a>
+          <div class="shortcut-hint">Press <kbd>5</kbd></div>
+        </div>
+      </div>
+    </article>
+
+    <!-- 6: Database -->
+    <article class="card">
+      <div class="card-line"></div>
+      <div class="inner">
+        <div class="topline">
+          <div class="icon">🗄️</div>
+          <div class="card-info">
+            <div class="title">Database</div>
+            <div class="desc">Manage and update match and team data.</div>
+          </div>
+        </div>
+        <div class="tags">
+          <span class="tag">Match Data</span>
+          <span class="tag">Teams</span>
+          <span class="tag">Records</span>
+        </div>
+        <div class="cta">
+          <a class="btn" href="database.html">Open Database →</a>
+          <div class="shortcut-hint">Press <kbd>6</kbd></div>
+        </div>
+      </div>
+    </article>
+
+    <!-- 7: Financial Dashboard — wide card -->
+    <article class="card card--wide card--financial">
+      <div class="card-line"></div>
+      <div class="inner">
+        <div class="topline">
+          <div class="icon">💹</div>
+          <div class="card-info">
+            <div class="title">Financial Dashboard</div>
+            <div class="desc">Real-time financial overview · P&L tracking · budget allocation · revenue reporting.</div>
+            <div class="tags" style="margin-top: 8px;">
+              <span class="tag">P&amp;L</span>
+              <span class="tag">Revenue</span>
+              <span class="tag">Budget</span>
+              <span class="tag">Reports</span>
+              <span class="tag">Real-time</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="fin-stats">
+          <div class="fin-stat">
+            <div class="fin-stat-value">$248k</div>
+            <div class="fin-stat-label">Total Revenue</div>
+          </div>
+          <div class="fin-stat">
+            <div class="fin-stat-value">$61k</div>
+            <div class="fin-stat-label">Net Profit</div>
+          </div>
+          <div class="fin-stat">
+            <div class="fin-stat-value neg">-$12k</div>
+            <div class="fin-stat-label">Expenses ↑</div>
+          </div>
+          <div class="fin-stat" style="margin-left: auto;">
+            <div class="sparklines" id="sparklines"></div>
+            <div class="fin-stat-label" style="text-align:right;">30d trend</div>
+          </div>
+        </div>
+
+        <div class="cta">
+          <a class="btn btn--accent" href="finances.html">Open Financial Dashboard →</a>
+          <div class="shortcut-hint">Press <kbd>7</kbd></div>
+        </div>
+      </div>
+    </article>
+
+  </section>
+
+  <footer>
+    <div class="footer-left">
+      <div class="update-chip">
+        <span class="status-dot"></span>
+        Last update: <span>02-21-26 | 22:36</span>
+      </div>
+    </div>
+    <a href="https://drive.google.com/drive/folders/1Ld9t7R52J0KxXzItSX3-woVnkkcwLFsM" class="btn" target="_blank">↗ KZ-Files</a>
+  </footer>
+</div>
+
+<script>
+  // Pages registry
+  const pages = [
+    "hltv.html",
+    "vrs.html",
+    "pro-analyses.html",
+    "seeding.html",
+    "events.html",
+    "database.html",
+    "finances.html"
+  ];
+
+  // Keyboard shortcut navigation
+  window.addEventListener("keydown", e => {
+    if (/^[1-7]$/.test(e.key) && !e.metaKey && !e.ctrlKey) {
+      const idx = parseInt(e.key) - 1;
+
+      // Highlight the shortcut bar item
+      const items = document.querySelectorAll('.sc-item');
+      items.forEach(i => i.classList.remove('active'));
+      const target = document.querySelector(`.sc-item[data-key="${e.key}"]`);
+      if (target) target.classList.add('active');
+
+      // Navigate after short delay for visual feedback
+      setTimeout(() => {
+        window.location.href = pages[idx];
+      }, 120);
+    }
+  });
+
+  // Generate sparkline bars
+  const sparklines = document.getElementById('sparklines');
+  const heights = [35, 50, 30, 60, 45, 70, 55, 80, 65, 90, 75, 88, 60, 95, 78, 100, 85, 72, 90, 68];
+  heights.forEach((h, i) => {
+    const bar = document.createElement('div');
+    bar.className = 'spark-bar' + (h > 70 ? ' high' : '');
+    bar.style.height = h + '%';
+    sparklines.appendChild(bar);
+  });
+</script>
+
+</body>
+</html>

@@ -84,6 +84,7 @@ body::before {
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100dvh;
   overflow-y: auto;
   overflow-x: hidden;
   transition: padding 0.3s cubic-bezier(0.4,0,0.2,1), width 0.3s;
@@ -1056,4 +1057,9 @@ canvas { width: 100% !important; }
 @media (prefers-reduced-motion: reduce) {
   .rank-row::after, .rank-1, .rank-2, .rank-3, .rank-top,
   .team-name-animated { animation: none !important; }
+}
+
+/* Impede que os itens da sidebar encolham, forçando a ativação do scroll */
+.sidebar > * {
+  flex-shrink: 0;
 }

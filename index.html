@@ -282,7 +282,6 @@
     .card:nth-child(3) { animation-delay: 0.15s; }
     .card:nth-child(4) { animation-delay: 0.20s; }
     .card:nth-child(5) { animation-delay: 0.25s; }
-    .card:nth-child(6) { animation-delay: 0.30s; }
 
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(24px); }
@@ -574,13 +573,7 @@
       --card-accent-text: #fcd34d;
       --card-accent-bg: rgba(245,158,11,0.08);
     }
-    .card:nth-child(5) {
-      --card-accent: rgba(239,68,68,0.4);
-      --card-accent-color: #ef4444;
-      --card-glow: linear-gradient(135deg, rgba(239,68,68,0.05), transparent 60%);
-      --card-accent-text: #fca5a5;
-      --card-accent-bg: rgba(239,68,68,0.08);
-    }
+    /* Note: Card 5 (Financial) utilizes the .card--financial class to enforce its green styling. */
 
     /* Active key highlight */
     .sc-item.active {
@@ -621,10 +614,9 @@
         <span class="sc-label">Shortcuts</span>
         <div class="sc-item" data-key="1"><kbd>1</kbd> Ranking</div>
         <div class="sc-item" data-key="2"><kbd>2</kbd> PRO</div>
-        <div class="sc-item" data-key="3"><kbd>3</kbd> Seeding</div>
-        <div class="sc-item" data-key="4"><kbd>4</kbd> Events</div>
-        <div class="sc-item" data-key="5"><kbd>5</kbd> Database</div>
-        <div class="sc-item" data-key="6"><kbd>6</kbd> Finance</div>
+        <div class="sc-item" data-key="3"><kbd>3</kbd> Seeding / Events</div>
+        <div class="sc-item" data-key="4"><kbd>4</kbd> Database</div>
+        <div class="sc-item" data-key="5"><kbd>5</kbd> Finance</div>
       </div>
     </div>
     <div class="divider"></div>
@@ -680,42 +672,20 @@
       <div class="card-line"></div>
       <div class="inner">
         <div class="topline">
-          <div class="icon">🎲</div>
+          <div class="icon">📅</div>
           <div class="card-info">
-            <div class="title">Seeding</div>
-            <div class="desc">Random draw and seeding generator.</div>
+            <div class="title">Seeding / Events</div>
+            <div class="desc">Random draw, seeding generator, and tournament tracking.</div>
           </div>
         </div>
         <div class="tags">
-          <span class="tag">Draw</span>
-          <span class="tag">Generator</span>
+          <span class="tag">Seeding</span>
+          <span class="tag">Tournaments</span>
           <span class="tag">Bracket</span>
         </div>
         <div class="cta">
-          <a class="btn" href="seeding.html">Open Seeding →</a>
+          <a class="btn" href="seeding-events.html">Open Seeding / Events →</a>
           <div class="shortcut-hint">Press <kbd>3</kbd></div>
-        </div>
-      </div>
-    </article>
-
-    <article class="card">
-      <div class="card-line"></div>
-      <div class="inner">
-        <div class="topline">
-          <div class="icon">📅</div>
-          <div class="card-info">
-            <div class="title">Events</div>
-            <div class="desc">Track tournaments and important updates.</div>
-          </div>
-        </div>
-        <div class="tags">
-          <span class="tag">Tournaments</span>
-          <span class="tag">Calendar</span>
-          <span class="tag">Updates</span>
-        </div>
-        <div class="cta">
-          <a class="btn" href="events.html">Open Events →</a>
-          <div class="shortcut-hint">Press <kbd>4</kbd></div>
         </div>
       </div>
     </article>
@@ -737,7 +707,7 @@
         </div>
         <div class="cta">
           <a class="btn" href="database.html">Open Database →</a>
-          <div class="shortcut-hint">Press <kbd>5</kbd></div>
+          <div class="shortcut-hint">Press <kbd>4</kbd></div>
         </div>
       </div>
     </article>
@@ -781,7 +751,7 @@
 
         <div class="cta">
           <a class="btn btn--accent" href="finances.html">Open Financial Dashboard →</a>
-          <div class="shortcut-hint">Press <kbd>6</kbd></div>
+          <div class="shortcut-hint">Press <kbd>5</kbd></div>
         </div>
       </div>
     </article>
@@ -792,7 +762,7 @@
     <div class="footer-left">
       <div class="update-chip">
         <span class="status-dot"></span>
-        Last update: <span>02-21-26 | 22:36</span>
+        Last update: <span>02-23-26 | 20:34</span>
       </div>
     </div>
     <a href="https://drive.google.com/drive/folders/1Ld9t7R52J0KxXzItSX3-woVnkkcwLFsM" class="btn" target="_blank">↗ KZ-Files</a>
@@ -804,16 +774,15 @@
   const pages = [
     "ranking.html",
     "pro-analyses.html",
-    "seeding.html",
-    "events.html",
+    "seeding-events.html", // Replaced individual seeding and events with a combined route
     "database.html",
     "finances.html"
   ];
 
   // Keyboard shortcut navigation
   window.addEventListener("keydown", e => {
-    // Modified regex to only allow keys 1 through 6
-    if (/^[1-6]$/.test(e.key) && !e.metaKey && !e.ctrlKey) {
+    // Modified regex to only allow keys 1 through 5
+    if (/^[1-5]$/.test(e.key) && !e.metaKey && !e.ctrlKey) {
       const idx = parseInt(e.key) - 1;
 
       // Highlight the shortcut bar item

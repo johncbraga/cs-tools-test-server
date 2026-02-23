@@ -283,7 +283,6 @@
     .card:nth-child(4) { animation-delay: 0.20s; }
     .card:nth-child(5) { animation-delay: 0.25s; }
     .card:nth-child(6) { animation-delay: 0.30s; }
-    .card:nth-child(7) { animation-delay: 0.35s; }
 
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(24px); }
@@ -582,13 +581,6 @@
       --card-accent-text: #fca5a5;
       --card-accent-bg: rgba(239,68,68,0.08);
     }
-    .card:nth-child(6) {
-      --card-accent: rgba(236,72,153,0.4);
-      --card-accent-color: #ec4899;
-      --card-glow: linear-gradient(135deg, rgba(236,72,153,0.05), transparent 60%);
-      --card-accent-text: #f9a8d4;
-      --card-accent-bg: rgba(236,72,153,0.08);
-    }
 
     /* Active key highlight */
     .sc-item.active {
@@ -627,13 +619,12 @@
 
       <div class="shortcut-bar" id="scBar">
         <span class="sc-label">Shortcuts</span>
-        <div class="sc-item" data-key="1"><kbd>1</kbd> HLTV</div>
-        <div class="sc-item" data-key="2"><kbd>2</kbd> VRS</div>
-        <div class="sc-item" data-key="3"><kbd>3</kbd> PRO</div>
-        <div class="sc-item" data-key="4"><kbd>4</kbd> Seeding</div>
-        <div class="sc-item" data-key="5"><kbd>5</kbd> Events</div>
-        <div class="sc-item" data-key="6"><kbd>6</kbd> Database</div>
-        <div class="sc-item" data-key="7"><kbd>7</kbd> Finance</div>
+        <div class="sc-item" data-key="1"><kbd>1</kbd> Ranking</div>
+        <div class="sc-item" data-key="2"><kbd>2</kbd> PRO</div>
+        <div class="sc-item" data-key="3"><kbd>3</kbd> Seeding</div>
+        <div class="sc-item" data-key="4"><kbd>4</kbd> Events</div>
+        <div class="sc-item" data-key="5"><kbd>5</kbd> Database</div>
+        <div class="sc-item" data-key="6"><kbd>6</kbd> Finance</div>
       </div>
     </div>
     <div class="divider"></div>
@@ -641,53 +632,28 @@
 
   <section class="grid">
 
-    <!-- 1: HLTV -->
     <article class="card">
       <div class="card-line"></div>
       <div class="inner">
         <div class="topline">
-          <div class="icon">🎯</div>
+          <div class="icon">🏆</div>
           <div class="card-info">
-            <div class="title">HLTV</div>
-            <div class="desc">Team statistics dashboards and performance data.</div>
+            <div class="title">Ranking</div>
+            <div class="desc">Team statistics, performance data, and VRS ratings.</div>
           </div>
         </div>
         <div class="tags">
+          <span class="tag">Rankings</span>
           <span class="tag">Statistics</span>
           <span class="tag">Performance</span>
-          <span class="tag">Dashboards</span>
         </div>
         <div class="cta">
-          <a class="btn" href="hltv.html">Open HLTV →</a>
+          <a class="btn" href="ranking.html">Open Ranking →</a>
           <div class="shortcut-hint">Press <kbd>1</kbd></div>
         </div>
       </div>
     </article>
 
-    <!-- 2: VRS -->
-    <article class="card">
-      <div class="card-line"></div>
-      <div class="inner">
-        <div class="topline">
-          <div class="icon">📈</div>
-          <div class="card-info">
-            <div class="title">VRS Rating</div>
-            <div class="desc">Team rating system based on VRS points.</div>
-          </div>
-        </div>
-        <div class="tags">
-          <span class="tag">Ratings</span>
-          <span class="tag">Rankings</span>
-          <span class="tag">Points</span>
-        </div>
-        <div class="cta">
-          <a class="btn" href="vrs.html">Open VRS →</a>
-          <div class="shortcut-hint">Press <kbd>2</kbd></div>
-        </div>
-      </div>
-    </article>
-
-    <!-- 3: PRO -->
     <article class="card">
       <div class="card-line"></div>
       <div class="inner">
@@ -705,12 +671,11 @@
         </div>
         <div class="cta">
           <a class="btn" href="pro-analyses.html">Open PRO →</a>
-          <div class="shortcut-hint">Press <kbd>3</kbd></div>
+          <div class="shortcut-hint">Press <kbd>2</kbd></div>
         </div>
       </div>
     </article>
 
-    <!-- 4: Seeding -->
     <article class="card">
       <div class="card-line"></div>
       <div class="inner">
@@ -728,12 +693,11 @@
         </div>
         <div class="cta">
           <a class="btn" href="seeding.html">Open Seeding →</a>
-          <div class="shortcut-hint">Press <kbd>4</kbd></div>
+          <div class="shortcut-hint">Press <kbd>3</kbd></div>
         </div>
       </div>
     </article>
 
-    <!-- 5: Events -->
     <article class="card">
       <div class="card-line"></div>
       <div class="inner">
@@ -751,12 +715,11 @@
         </div>
         <div class="cta">
           <a class="btn" href="events.html">Open Events →</a>
-          <div class="shortcut-hint">Press <kbd>5</kbd></div>
+          <div class="shortcut-hint">Press <kbd>4</kbd></div>
         </div>
       </div>
     </article>
 
-    <!-- 6: Database -->
     <article class="card">
       <div class="card-line"></div>
       <div class="inner">
@@ -774,12 +737,11 @@
         </div>
         <div class="cta">
           <a class="btn" href="database.html">Open Database →</a>
-          <div class="shortcut-hint">Press <kbd>6</kbd></div>
+          <div class="shortcut-hint">Press <kbd>5</kbd></div>
         </div>
       </div>
     </article>
 
-    <!-- 7: Financial Dashboard — wide card -->
     <article class="card card--wide card--financial">
       <div class="card-line"></div>
       <div class="inner">
@@ -819,7 +781,7 @@
 
         <div class="cta">
           <a class="btn btn--accent" href="finances.html">Open Financial Dashboard →</a>
-          <div class="shortcut-hint">Press <kbd>7</kbd></div>
+          <div class="shortcut-hint">Press <kbd>6</kbd></div>
         </div>
       </div>
     </article>
@@ -840,8 +802,7 @@
 <script>
   // Pages registry
   const pages = [
-    "hltv.html",
-    "vrs.html",
+    "ranking.html",
     "pro-analyses.html",
     "seeding.html",
     "events.html",
@@ -851,7 +812,8 @@
 
   // Keyboard shortcut navigation
   window.addEventListener("keydown", e => {
-    if (/^[1-7]$/.test(e.key) && !e.metaKey && !e.ctrlKey) {
+    // Modified regex to only allow keys 1 through 6
+    if (/^[1-6]$/.test(e.key) && !e.metaKey && !e.ctrlKey) {
       const idx = parseInt(e.key) - 1;
 
       // Highlight the shortcut bar item

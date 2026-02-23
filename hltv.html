@@ -5,547 +5,56 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>NEXUS · Ranking Command Center</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500;700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    :root {
-      --bg: #060a13;
-      --surface: #0c1220;
-      --surface2: #111d30;
-      --surface3: rgba(12,18,32,0.92);
-      --border: #172038;
-      --border-bright: #243352;
-      --border-glow: rgba(79,140,255,0.25);
-      --text: #e2ecff;
-      --text-dim: #5a7099;
-      --text-muted: #3d5175;
-      --accent: #4f8cff;
-      --accent2: #7b5fff;
-      --neon-cyan: #00e5ff;
-      --good: #00e87a;
-      --bad: #ff4060;
-      --warn: #ffb930;
-      --gold: #ffd700;
-      --silver: #c0c8d8;
-      --bronze: #cd7f32;
-      --font-display: 'Syne', sans-serif;
-      --font-mono: 'JetBrains Mono', monospace;
-      --font-body: 'Inter', sans-serif;
-      --glow-accent: 0 0 30px rgba(79,140,255,0.12);
-      --radius: 12px;
-      --radius-sm: 8px;
-      --trans: 0.18s ease;
-    }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: var(--font-body);
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
-    body::before {
-      content: '';
-      position: fixed; inset: 0;
-      background:
-        radial-gradient(ellipse 800px 500px at 10% 8%, rgba(79,140,255,0.06) 0%, transparent 70%),
-        radial-gradient(ellipse 600px 400px at 90% 85%, rgba(123,95,255,0.05) 0%, transparent 70%),
-        radial-gradient(ellipse 500px 300px at 50% 50%, rgba(0,232,122,0.025) 0%, transparent 70%);
-      pointer-events: none; z-index: 0;
-    }
-    /* Scanline overlay */
-    body::after {
-      content: '';
-      position: fixed; inset: 0;
-      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
-      pointer-events: none; z-index: 9999;
-    }
-
-    /* ─── Layout ─── */
-    .app-shell {
-      position: relative; z-index: 1;
-      display: grid;
-      grid-template-columns: 250px 1fr;
-      min-height: 100vh;
-    }
-
-    /* ─── Sidebar ─── */
-    .sidebar {
-      background: linear-gradient(180deg, rgba(12,18,32,0.98) 0%, rgba(6,10,19,0.99) 100%);
-      border-right: 1px solid var(--border);
-      padding: 24px 16px;
-      display: flex; flex-direction: column; gap: 4px;
-      position: sticky; top: 0; height: 100vh;
-      overflow-y: auto;
-    }
-    .logo {
-      font-family: var(--font-display);
-      font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
-      background: linear-gradient(135deg, var(--accent), var(--neon-cyan));
-      -webkit-background-clip: text; background-clip: text; color: transparent;
-      padding: 0 10px; margin-bottom: 2px;
-    }
-    .logo-sub {
-      font-size: 10px; color: var(--text-dim);
-      letter-spacing: 2.5px; text-transform: uppercase;
-      font-family: var(--font-mono); padding: 0 10px; margin-bottom: 20px;
-    }
-    .sidebar-section {
-      font-size: 9px; color: var(--text-muted);
-      letter-spacing: 2.5px; text-transform: uppercase;
-      font-family: var(--font-mono);
-      padding: 12px 10px 4px;
-    }
-    .nav-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 9px 12px; border-radius: 10px; cursor: pointer;
-      font-size: 13px; color: var(--text-dim); font-weight: 500;
-      transition: all 0.15s ease;
-      border: 1px solid transparent; text-decoration: none;
-    }
-    .nav-item:hover {
-      color: var(--text);
-      background: rgba(79,140,255,0.07);
-      border-color: rgba(79,140,255,0.12);
-    }
-    .nav-item.active {
-      color: var(--accent);
-      background: rgba(79,140,255,0.1);
-      border-color: rgba(79,140,255,0.2);
-    }
-    .nav-icon { width: 18px; text-align: center; font-size: 14px; flex-shrink: 0; }
-    .sidebar-divider { height: 1px; background: var(--border); margin: 10px 0; }
-    .sidebar-footer {
-      margin-top: auto; padding: 12px 10px 0;
-      border-top: 1px solid var(--border);
-    }
-    .sidebar-footer-text {
-      font-size: 10px; color: var(--text-muted); font-family: var(--font-mono);
-    }
-    .side-stat {
-      padding: 4px 10px; display: flex; flex-direction: column; gap: 6px;
-    }
-    .side-pill {
-      display: flex; flex-direction: column; gap: 1px;
-      padding: 8px 12px; border-radius: 8px;
-      background: rgba(7,11,18,0.6); border: 1px solid var(--border);
-    }
-    .side-pill-label {
-      font-size: 9px; color: var(--text-muted);
-      text-transform: uppercase; letter-spacing: 1.5px;
-      font-family: var(--font-mono);
-    }
-    .side-pill-value {
-      font-size: 18px; font-weight: 800;
-      font-family: var(--font-display); color: var(--text);
-    }
-    .side-pill-value.up { color: var(--good); }
-    .side-pill-value.down { color: var(--bad); }
-
-    /* ─── Main ─── */
-    .main { display: flex; flex-direction: column; min-height: 100vh; }
-
-    .top-bar {
-      padding: 16px 24px; border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: space-between;
-      background: rgba(6,10,19,0.92); backdrop-filter: blur(14px);
-      position: sticky; top: 0; z-index: 50; flex-wrap: wrap; gap: 10px;
-    }
-    .page-title {
-      font-family: var(--font-display);
-      font-size: 17px; font-weight: 700; color: var(--text);
-    }
-    .page-sub {
-      font-size: 10px; color: var(--text-dim);
-      font-family: var(--font-mono); margin-top: 1px; letter-spacing: 0.5px;
-    }
-    .top-bar-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-
-    /* ─── Panels ─── */
-    .panels { padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; }
-    .panel { display: none; flex-direction: column; gap: 18px; animation: fadeIn 0.22s ease; }
-    .panel.active { display: flex; }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* ─── Cards ─── */
-    .card {
-      background: linear-gradient(135deg, rgba(17,29,48,0.85) 0%, rgba(12,18,32,0.92) 100%);
-      border: 1px solid var(--border); border-radius: var(--radius);
-      overflow: hidden; transition: border-color var(--trans);
-    }
-    .card:hover { border-color: var(--border-bright); }
-    .card-header {
-      padding: 14px 18px; border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 12px; flex-wrap: wrap;
-    }
-    .card-title {
-      font-family: var(--font-display);
-      font-size: 14px; font-weight: 700; color: var(--text);
-    }
-    .card-subtitle {
-      font-size: 11px; color: var(--text-dim);
-      font-family: var(--font-mono); margin-top: 1px;
-    }
-    .card-body { padding: 16px 18px; }
-
-    /* ─── Buttons ─── */
-    .btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 8px 14px; border-radius: 8px; border: 1px solid transparent;
-      font-size: 12px; font-weight: 600; font-family: var(--font-body);
-      cursor: pointer; transition: all 0.15s ease; white-space: nowrap;
-    }
-    .btn-primary {
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      color: #fff; box-shadow: 0 3px 12px rgba(79,140,255,0.25);
-    }
-    .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
-    .btn-ghost {
-      background: rgba(255,255,255,0.03);
-      border-color: var(--border-bright); color: var(--text);
-    }
-    .btn-ghost:hover { background: rgba(255,255,255,0.06); border-color: var(--border-glow); color: var(--accent); }
-    .btn-ai {
-      background: linear-gradient(135deg, rgba(123,95,255,0.18), rgba(0,229,255,0.08));
-      border-color: rgba(123,95,255,0.4); color: var(--accent2);
-    }
-    .btn-ai:hover { background: linear-gradient(135deg, rgba(123,95,255,0.28), rgba(0,229,255,0.14)); }
-    .btn:disabled { opacity: 0.3; pointer-events: none; }
-    .btn:active { transform: translateY(1px); }
-
-    /* ─── Form controls ─── */
-    .form-group { display: flex; flex-direction: column; gap: 4px; }
-    .form-label {
-      font-size: 10px; color: var(--text-dim);
-      letter-spacing: 1px; text-transform: uppercase;
-      font-family: var(--font-mono);
-    }
-    .ctrl {
-      padding: 8px 11px; border-radius: 8px;
-      border: 1px solid var(--border-bright);
-      background: rgba(6,10,19,0.8);
-      color: var(--text); font-size: 12px; font-family: var(--font-body);
-      outline: none; transition: border-color 0.15s ease; min-width: 140px;
-    }
-    .ctrl:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79,140,255,0.1); }
-    .controls-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
-
-    /* ─── Status ─── */
-    .status-bar {
-      display: flex; align-items: center; gap: 8px;
-      padding: 8px 12px; border-radius: 8px;
-      background: rgba(7,11,18,0.7); border: 1px solid var(--border);
-      font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
-    }
-    .status-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: var(--text-dim); flex-shrink: 0;
-    }
-    .status-dot.ok { background: var(--good); box-shadow: 0 0 8px var(--good); }
-    .status-dot.err { background: var(--bad); box-shadow: 0 0 8px var(--bad); }
-    .status-dot.loading { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 1s ease-in-out infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
-    /* ─── Stat cards row ─── */
-    .stats-row { display: flex; gap: 10px; flex-wrap: wrap; }
-    .stat-pill {
-      display: flex; flex-direction: column; gap: 2px;
-      padding: 10px 14px; border-radius: 10px;
-      background: rgba(7,11,18,0.5); border: 1px solid var(--border);
-      min-width: 80px; transition: var(--trans);
-    }
-    .stat-pill:hover { border-color: var(--border-bright); }
-    .stat-label {
-      font-size: 9px; color: var(--text-muted); text-transform: uppercase;
-      letter-spacing: 1.5px; font-family: var(--font-mono);
-    }
-    .stat-value {
-      font-size: 20px; font-weight: 800;
-      font-family: var(--font-display); color: var(--text);
-    }
-    .stat-value.up { color: var(--good); }
-    .stat-value.down { color: var(--bad); }
-    .stat-value.warn { color: var(--warn); }
-
-    /* ─── Table ─── */
-    .table-wrapper {
-      overflow: auto; max-height: 60vh;
-      border-radius: var(--radius-sm); border: 1px solid var(--border);
-    }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    thead th {
-      text-align: left; padding: 10px 12px;
-      font-size: 9px; color: var(--text-dim);
-      font-family: var(--font-mono); letter-spacing: 1.5px;
-      text-transform: uppercase; border-bottom: 1px solid var(--border);
-      position: sticky; top: 0; background: rgba(6,10,19,0.96);
-      backdrop-filter: blur(8px); z-index: 10; white-space: nowrap;
-      cursor: pointer; user-select: none; transition: color var(--trans);
-    }
-    thead th:hover { color: var(--accent); }
-    tbody td {
-      padding: 9px 12px;
-      border-bottom: 1px solid rgba(23,32,56,0.6);
-      vertical-align: middle; white-space: nowrap;
-    }
-    tbody tr { transition: background 0.12s ease; }
-    tbody tr:hover td { background: rgba(79,140,255,0.04); }
-    .right { text-align: right; }
-
-    /* ─── Rank rows ─── */
-    @keyframes shimmer {
-      0% { transform: translateX(-100%) skewX(-12deg); }
-      100% { transform: translateX(200%) skewX(-12deg); }
-    }
-    @keyframes waveShift {
-      0%,100% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-    }
-    .rank-row { position: relative; isolation: isolate; background-size: 300% 300%; }
-    .rank-row::after {
-      content:''; position:absolute; inset:0;
-      background: linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.05) 50%,transparent 100%);
-      transform: translateX(-100%) skewX(-12deg);
-      animation: shimmer 4s ease-in-out infinite;
-      pointer-events: none; z-index:0;
-    }
-    .rank-row > td { position: relative; z-index:1; }
-    .rank-1 { background: linear-gradient(90deg,rgba(255,215,0,0.10) 0%,rgba(255,180,0,0.04) 50%,rgba(255,215,0,0.03) 100%); animation: waveShift 6s ease-in-out infinite; }
-    .rank-2 { background: linear-gradient(90deg,rgba(192,200,216,0.08) 0%,rgba(160,175,200,0.04) 50%,rgba(192,200,216,0.02) 100%); animation: waveShift 7s ease-in-out infinite; }
-    .rank-3 { background: linear-gradient(90deg,rgba(205,127,50,0.10) 0%,rgba(180,100,30,0.04) 50%,rgba(205,127,50,0.03) 100%); animation: waveShift 8s ease-in-out infinite; }
-    .rank-top { background: linear-gradient(90deg,rgba(79,140,255,0.06) 0%,rgba(123,95,255,0.03) 50%,rgba(79,140,255,0.02) 100%); animation: waveShift 9s ease-in-out infinite; }
-
-    /* Team name animated */
-    @keyframes textFlow { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
-    .team-name-animated {
-      font-family: var(--font-display); font-weight: 800; font-size: 12px;
-      background-size: 200% 100%; animation: textFlow 3s linear infinite;
-      -webkit-background-clip: text; background-clip: text;
-      color: transparent; -webkit-text-fill-color: transparent;
-    }
-    .team-name-1 { background-image: linear-gradient(90deg,#ffd700,#fff7aa,#ffb700,#ffe566,#ffd700); }
-    .team-name-2 { background-image: linear-gradient(90deg,#a0b8d8,#fff,#c8d8f0,#7090b8,#a0b8d8); }
-    .team-name-3 { background-image: linear-gradient(90deg,#cd7f32,#f0b060,#cd7f32,#e8a050,#cd7f32); }
-    .team-name-top { background-image: linear-gradient(90deg,#4f8cff,#7b5fff,#4f8cff); }
-    .team-name-default { font-family: var(--font-body); font-weight: 500; color: var(--text); font-size: 12px; }
-
-    /* Rank badge */
-    .rank-badge {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 26px; height: 26px; border-radius: 7px;
-      font-family: var(--font-mono); font-weight: 700; font-size: 11px;
-    }
-    .rank-badge-1 { background: rgba(255,215,0,0.18); color: var(--gold); border: 1px solid rgba(255,215,0,0.3); }
-    .rank-badge-2 { background: rgba(192,200,216,0.13); color: var(--silver); border: 1px solid rgba(192,200,216,0.25); }
-    .rank-badge-3 { background: rgba(205,127,50,0.18); color: var(--bronze); border: 1px solid rgba(205,127,50,0.3); }
-    .rank-badge-n { background: rgba(255,255,255,0.03); color: var(--text-dim); border: 1px solid var(--border); }
-
-    /* Delta chips */
-    .delta { font-family: var(--font-mono); font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 2px; }
-    .delta.up { color: var(--good); }
-    .delta.down { color: var(--bad); }
-    .delta.flat { color: var(--text-dim); }
-    .delta.new { color: var(--warn); }
-
-    /* Tier badge */
-    .tier-badge {
-      display: inline-block; padding: 2px 7px; border-radius: 999px;
-      font-size: 10px; font-family: var(--font-mono); font-weight: 600;
-    }
-    .tier-s { background: rgba(255,185,48,0.13); color: #ffb930; border: 1px solid rgba(255,185,48,0.25); }
-    .tier-1 { background: rgba(79,140,255,0.13); color: #4f8cff; border: 1px solid rgba(79,140,255,0.25); }
-    .tier-2 { background: rgba(123,95,255,0.13); color: #7b5fff; border: 1px solid rgba(123,95,255,0.25); }
-    .tier-3 { background: rgba(90,112,153,0.13); color: #8aabcc; border: 1px solid rgba(90,112,153,0.25); }
-
-    /* Region */
-    .region-tag { display:inline-flex; align-items:center; gap:5px; font-size:11px; color:var(--text-dim); font-family:var(--font-mono); }
-    .region-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
-    .region-am .region-dot { background:#4f8cff; }
-    .region-eu .region-dot { background:#7b5fff; }
-    .region-as .region-dot { background:#00e87a; }
-
-    /* Badge for HLTV-style tables */
-    .badge { display:inline-block; padding:2px 7px; border-radius:3px; font-size:10px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; }
-    .badge-AM { background:rgba(79,140,255,0.12); color:#4f8cff; border:1px solid rgba(79,140,255,0.3); }
-    .badge-EU { background:rgba(123,95,255,0.12); color:#7b5fff; border:1px solid rgba(123,95,255,0.3); }
-    .badge-AS { background:rgba(0,232,122,0.12); color:var(--good); border:1px solid rgba(0,232,122,0.3); }
-
-    /* Streak */
-    .streak-badge { display:inline-flex; align-items:center; gap:3px; font-family:var(--font-mono); font-size:11px; font-weight:700; }
-    .streak-badge.hot { color: var(--warn); }
-    .streak-badge.cold { color: var(--text-dim); }
-
-    /* Charts */
-    .chart-wrap { position: relative; }
-    canvas { width: 100% !important; }
-    .mini-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; }
-    @media (max-width:960px) { .mini-grid { grid-template-columns: 1fr; } }
-    .mini-panel {
-      background: rgba(7,11,18,0.5); border: 1px solid var(--border);
-      border-radius: var(--radius-sm); padding: 14px; transition: var(--trans);
-    }
-    .mini-panel:hover { border-color: var(--border-bright); }
-    .mini-panel h4 {
-      font-family: var(--font-display); font-size: 11px; font-weight: 700;
-      letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px;
-    }
-    .mini-panel canvas { max-height: 250px; }
-
-    .state {
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-      padding: 24px; color: var(--text-dim); font-size: 12px;
-      border: 1px dashed rgba(79,140,255,0.1); border-radius: var(--radius-sm);
-      background: rgba(0,0,0,0.15);
-    }
-    .spinner {
-      width: 14px; height: 14px;
-      border: 2px solid rgba(79,140,255,0.15);
-      border-top-color: var(--accent);
-      border-radius: 50%; animation: spin 0.65s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ─── VS display ─── */
-    .vs-display {
-      display:flex; align-items:center; gap:20px;
-      padding:14px 18px; background:rgba(7,11,18,0.6);
-      border-radius:var(--radius-sm); border:1px solid var(--border); margin-bottom:14px;
-    }
-    .vs-team { flex:1; text-align:center; }
-    .vs-team-name { font-family:var(--font-display); font-size:14px; font-weight:800; margin-bottom:3px; }
-    .vs-team-pts { font-family:var(--font-mono); font-size:18px; font-weight:700; color:var(--accent); }
-    .vs-divider { font-family:var(--font-display); font-size:18px; font-weight:800; color:var(--text-muted); }
-    .vs-prob-bar { display:flex; height:5px; border-radius:999px; overflow:hidden; background:var(--border); }
-    .vs-prob-a { background:var(--accent); transition:width 0.4s ease; }
-    .vs-prob-b { background:var(--accent2); transition:width 0.4s ease; }
-
-    /* ─── AI Analysis ─── */
-    .ai-analysis-box {
-      background: linear-gradient(135deg,rgba(79,140,255,0.04) 0%,rgba(123,95,255,0.04) 100%);
-      border: 1px solid rgba(79,140,255,0.18); border-radius: var(--radius); padding: 18px;
-    }
-    .ai-header { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
-    .ai-icon {
-      width:30px; height:30px; border-radius:8px;
-      background: linear-gradient(135deg,var(--accent),var(--accent2));
-      display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0;
-    }
-    .ai-title { font-family:var(--font-display); font-size:13px; font-weight:700; }
-    .ai-subtitle { font-size:10px; color:var(--text-dim); }
-    .ai-section { margin-bottom: 14px; }
-    .ai-section-title {
-      font-size: 10px; color: var(--accent); font-family: var(--font-mono);
-      letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 8px;
-      display: flex; align-items: center; gap: 6px;
-    }
-    .ai-section-title::after { content:''; flex:1; height:1px; background:rgba(79,140,255,0.15); }
-    .ai-insight-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr)); gap: 8px; }
-    .ai-insight-card {
-      padding:10px 12px; border-radius:8px;
-      background:rgba(7,11,18,0.6); border:1px solid var(--border);
-    }
-    .ai-insight-label { font-size:9px; color:var(--text-muted); font-family:var(--font-mono); letter-spacing:1.5px; text-transform:uppercase; margin-bottom:3px; }
-    .ai-insight-value { font-size:13px; font-weight:600; color:var(--text); font-family:var(--font-display); }
-    .ai-insight-sub { font-size:10px; color:var(--text-dim); margin-top:1px; font-family:var(--font-mono); }
-    .ai-list { display:flex; flex-direction:column; gap:4px; }
-    .ai-list-item {
-      display:flex; align-items:flex-start; gap:8px;
-      font-size:12px; color:var(--text); line-height:1.5;
-      padding:5px 0; border-bottom:1px solid rgba(23,32,56,0.4);
-    }
-    .ai-list-item:last-child { border-bottom:none; }
-    .ai-list-num {
-      width:18px; height:18px; border-radius:5px;
-      background:rgba(79,140,255,0.12); color:var(--accent);
-      display:flex; align-items:center; justify-content:center;
-      font-size:9px; font-weight:700; font-family:var(--font-mono); flex-shrink:0; margin-top:1px;
-    }
-
-    /* HLTV AI typewriter */
-    .ai-output {
-      font-family: var(--font-mono); font-size: 12px; line-height: 1.8;
-      color: var(--text); min-height: 100px; white-space: pre-wrap; padding: 14px 16px;
-    }
-    .ai-output .ai-header-line { color: var(--accent2); font-weight: 700; }
-
-    /* Legends table */
-    .legend-gold td { background:rgba(255,215,0,0.10)!important; color:var(--gold); border-left:2px solid var(--gold); }
-    .legend-silver td { background:rgba(192,200,216,0.06)!important; color:#cbd5e1; border-left:2px solid #94a3b8; }
-    .legend-bronze td { background:rgba(205,127,50,0.10)!important; color:#f59e0b; border-left:2px solid #d97706; }
-    .legend-other td { background:rgba(239,68,68,0.04)!important; }
-
-    /* Compare */
-    .compare-controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
-    .compare-controls label { font-size:10px; letter-spacing:0.1em; color:var(--text-dim); text-transform:uppercase; font-family:var(--font-mono); }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar { width:5px; height:5px; }
-    ::-webkit-scrollbar-track { background:var(--bg); }
-    ::-webkit-scrollbar-thumb { background:var(--border-bright); border-radius:99px; }
-    ::-webkit-scrollbar-thumb:hover { background:var(--text-muted); }
-
-    .empty-state { text-align:center; padding:32px; color:var(--text-dim); font-size:12px; }
-    .mono { font-family:var(--font-mono); }
-    .text-muted { color:var(--text-dim); }
-    .text-xs { font-size:10px; }
-    .metric-cell { color:var(--accent); font-weight:700; }
-
-    /* Mobile */
-    @media (max-width:900px) {
-      .app-shell { grid-template-columns:1fr; }
-      .sidebar { display:none; }
-      .panels { padding:14px; }
-      .mini-grid { grid-template-columns:1fr; }
-    }
-    @media (prefers-reduced-motion:reduce) {
-      .rank-row::after,.rank-1,.rank-2,.rank-3,.rank-top,.team-name-animated { animation:none!important; }
-    }
-  </style>
 </head>
 <body>
-<div class="app-shell">
+<div class="app-shell" id="appShell">
 
-  <!-- ════════ SIDEBAR ════════ -->
-  <aside class="sidebar">
+  <!-- ════════════════════════════════════════════
+       SIDEBAR
+  ════════════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar">
+    <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">◀</button>
+
     <div class="logo">NEXUS</div>
     <div class="logo-sub">Ranking Command</div>
 
     <div class="sidebar-section">Main Views</div>
     <a class="nav-item active" data-panel="dashboard" onclick="switchPanel('dashboard');return false" href="#">
-      <span class="nav-icon">📊</span> Dashboard
-    </a>
-    <a class="nav-item" data-panel="global" onclick="switchPanel('global');return false" href="#">
-      <span class="nav-icon">🌐</span> Global Ranking
+      <span class="nav-icon">📊</span><span class="nav-label">Dashboard</span>
     </a>
     <a class="nav-item" data-panel="charts" onclick="switchPanel('charts');return false" href="#">
-      <span class="nav-icon">📈</span> Charts & Analytics
+      <span class="nav-icon">📈</span><span class="nav-label">Charts & Analytics</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">Rankings</div>
+    <a class="nav-item" data-panel="global" onclick="switchPanel('global');return false" href="#">
+      <span class="nav-icon">🌐</span><span class="nav-label">Global Ranking</span>
     </a>
     <a class="nav-item" data-panel="region" onclick="switchPanel('region');return false" href="#">
-      <span class="nav-icon">🗺</span> Regional View
+      <span class="nav-icon">🗺</span><span class="nav-label">Regional Ranking</span>
     </a>
 
+    <div class="sidebar-divider"></div>
     <div class="sidebar-section">Tools</div>
     <a class="nav-item" data-panel="predictor" onclick="switchPanel('predictor');return false" href="#">
-      <span class="nav-icon">⚡</span> Match Predictor
-    </a>
-    <a class="nav-item" data-panel="compare" onclick="switchPanel('compare');return false" href="#">
-      <span class="nav-icon">⚔️</span> Team Compare
+      <span class="nav-icon">⚡</span><span class="nav-label">Match Predictor</span>
     </a>
     <a class="nav-item" data-panel="legends" onclick="switchPanel('legends');return false" href="#">
-      <span class="nav-icon">👑</span> Legends Hall
+      <span class="nav-icon">👑</span><span class="nav-label">Legends Hall</span>
     </a>
 
+    <div class="sidebar-divider"></div>
     <div class="sidebar-section">Intelligence</div>
     <a class="nav-item" data-panel="analysis-vrs" onclick="switchPanel('analysis-vrs');return false" href="#">
-      <span class="nav-icon">🧠</span> VRS Analysis
+      <span class="nav-icon">🧠</span><span class="nav-label">VRS Analysis</span>
     </a>
     <a class="nav-item" data-panel="analysis-hltv" onclick="switchPanel('analysis-hltv');return false" href="#">
-      <span class="nav-icon">🔬</span> Data Insights
+      <span class="nav-icon">🔬</span><span class="nav-label">Data Insights</span>
     </a>
 
     <div class="sidebar-divider"></div>
@@ -556,15 +65,20 @@
     </div>
 
     <div class="sidebar-divider"></div>
-    <a class="nav-item" href="index.html"><span class="nav-icon">←</span> Back to Menu</a>
+    <a class="nav-item" href="index.html"><span class="nav-icon">←</span><span class="nav-label">Back to Menu</span></a>
+
     <div class="sidebar-footer">
       <div class="sidebar-footer-text">NEXUS · KZ Studio · by Kilzys</div>
-      <div class="sidebar-footer-text" style="margin-top:2px;color:var(--text-muted)">Local processing · No API</div>
+      <div class="sidebar-footer-text" style="margin-top:2px; color:var(--muted2)">Local processing · No API</div>
     </div>
   </aside>
 
-  <!-- ════════ MAIN ════════ -->
+  <!-- ════════════════════════════════════════════
+       MAIN CONTENT
+  ════════════════════════════════════════════ -->
   <main class="main">
+
+    <!-- Top bar -->
     <div class="top-bar">
       <div>
         <div class="page-title" id="pageTitle">Dashboard</div>
@@ -578,54 +92,68 @@
       </div>
     </div>
 
+    <!-- Panels container -->
     <div class="panels">
-      <!-- Status always visible -->
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <div class="status-bar" style="flex:1;min-width:200px">
+
+      <!-- Status (always visible) -->
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="status-bar" style="flex:1; min-width:200px;">
           <div class="status-dot loading" id="statusDot"></div>
-          <span id="statusText">Loading files…</span>
+          <span id="statusText">Loading files automatically…</span>
         </div>
       </div>
 
-      <!-- ═══ DASHBOARD ═══ -->
+      <!-- ═══════════════════════════════════════
+           DASHBOARD
+      ═══════════════════════════════════════ -->
       <div class="panel active" id="panel-dashboard">
+
         <div class="stats-row" id="statsRow" style="display:none">
           <div class="stat-pill"><span class="stat-label">Teams</span><span class="stat-value" id="countTeams">0</span></div>
           <div class="stat-pill"><span class="stat-label">Top Team</span><span class="stat-value" id="countTop" style="font-size:14px">—</span></div>
           <div class="stat-pill"><span class="stat-label">Avg Pts</span><span class="stat-value" id="countAvg">0</span></div>
           <div class="stat-pill"><span class="stat-label">Risers</span><span class="stat-value up" id="countUp">0</span></div>
           <div class="stat-pill"><span class="stat-label">Fallers</span><span class="stat-value down" id="countDown">0</span></div>
-          <div class="stat-pill"><span class="stat-label">Unchanged</span><span class="stat-value" id="countFlat">0</span></div>
+          <div class="stat-pill"><span class="stat-label">No Change</span><span class="stat-value" id="countFlat">0</span></div>
           <div class="stat-pill"><span class="stat-label">New</span><span class="stat-value warn" id="countNew">0</span></div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px">
           <div class="card">
-            <div class="card-header"><div><div class="card-title">Region Overview</div><div class="card-subtitle">avg by selected metric</div></div>
-              <select id="dashMetric" class="ctrl" style="min-width:120px">
-                <option value="Points">Points</option><option value="Victories">Victories</option>
-                <option value="Streak">Streak</option><option value="Prestige">Prestige</option>
+            <div class="card-header">
+              <div><div class="card-title">Region Overview</div><div class="card-subtitle">avg by selected metric</div></div>
+              <select id="dashMetric" class="form-control" style="min-width:130px">
+                <option value="Points">Points</option>
+                <option value="Victories">Victories</option>
+                <option value="Streak">Streak</option>
+                <option value="Loses">Loses</option>
+                <option value="Prestige">Prestige</option>
                 <option value="Majors">Majors</option>
+                <option value="Tournaments Trophies">Trophies</option>
               </select>
             </div>
             <div class="card-body chart-wrap">
               <div class="state" id="regionChartState"><span class="spinner"></span>Loading…</div>
-              <canvas id="regionChart" style="display:none;max-height:220px"></canvas>
+              <canvas id="regionChart" style="display:none; max-height:220px"></canvas>
             </div>
           </div>
           <div class="card">
-            <div class="card-header"><div><div class="card-title">Top 10 Teams</div><div class="card-subtitle">by points</div></div></div>
+            <div class="card-header">
+              <div><div class="card-title">Top 10 Teams</div><div class="card-subtitle" id="top10Subtitle">by Points</div></div>
+            </div>
             <div class="card-body chart-wrap">
               <div class="state" id="topChartState"><span class="spinner"></span>Loading…</div>
-              <canvas id="topChart" style="display:none;max-height:220px"></canvas>
+              <canvas id="topChart" style="display:none; max-height:220px"></canvas>
             </div>
           </div>
         </div>
 
         <div class="card">
-          <div class="card-header"><div><div class="card-title">Quick Ranking</div><div class="card-subtitle">Top 20 by points</div></div></div>
+          <div class="card-header">
+            <div><div class="card-title">Top 20 Ranking</div><div class="card-subtitle" id="dashTableSubtitle">sorted by Points</div></div>
+          </div>
           <div class="card-body" style="padding:0">
-            <div class="table-wrapper" style="max-height:380px" id="dashTableWrap">
+            <div class="table-wrapper" style="max-height:420px" id="dashTableWrap">
               <div class="state" id="dashTableState">Loading…</div>
               <table id="dashTable" style="display:none"></table>
             </div>
@@ -633,48 +161,20 @@
         </div>
       </div>
 
-      <!-- ═══ GLOBAL RANKING (VRS style) ═══ -->
-      <div class="panel" id="panel-global">
-        <div class="card">
-          <div class="card-header">
-            <div><div class="card-title">Global Ranking</div><div class="card-subtitle">Old vs New · Position & Point changes</div></div>
-            <div class="controls-row">
-              <div class="form-group"><label class="form-label">Region</label>
-                <select class="ctrl" id="filterRegion" disabled><option value="">All Regions</option></select>
-              </div>
-              <div class="form-group"><label class="form-label">Tier</label>
-                <select class="ctrl" id="filterTier" disabled><option value="">All Tiers</option>
-                  <option value="Tier S">Tier S</option><option value="Tier 1">Tier 1</option>
-                  <option value="Tier 2">Tier 2</option><option value="Tier 3">Tier 3</option>
-                </select>
-              </div>
-              <div class="form-group"><label class="form-label">Search</label>
-                <input class="ctrl" id="filterText" type="text" placeholder="Team name…" disabled>
-              </div>
-              <div style="display:flex;align-items:flex-end"><button class="btn btn-ghost" id="btnClearFilters" disabled>✕ Clear</button></div>
-            </div>
-          </div>
-          <div class="table-wrapper">
-            <table><thead><tr>
-              <th style="width:44px">#</th><th>Team</th><th class="right">Points</th>
-              <th class="right">Δ Pts</th><th class="right">Streak</th><th>Region</th>
-              <th>Tier</th><th class="right">Pos Δ</th><th class="right" style="font-size:9px">Old → New</th>
-            </tr></thead>
-            <tbody id="tbody"><tr><td colspan="9" class="empty-state">Loading…</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ═══ CHARTS & ANALYTICS ═══ -->
+      <!-- ═══════════════════════════════════════
+           CHARTS & ANALYTICS
+      ═══════════════════════════════════════ -->
       <div class="panel" id="panel-charts">
         <div class="card">
           <div class="card-header">
-            <div><div class="card-title">Analytics Dashboard</div><div class="card-subtitle">Charts update with data</div></div>
+            <div><div class="card-title">Analytics Dashboard</div><div class="card-subtitle">Visual breakdowns across metrics</div></div>
             <div class="controls-row">
-              <div class="form-group"><label class="form-label">Region Filter</label>
-                <select id="chartRegionFilter" class="ctrl"><option value="Global">Global</option>
-                  <option value="EU">Europe</option><option value="AS/SIS/ESEA">Asia</option><option value="AM">Americas</option>
+              <div class="form-group"><label class="form-label">Region</label>
+                <select id="chartRegionFilter" class="form-control" style="min-width:130px">
+                  <option value="Global">Global</option>
+                  <option value="EU">Europe</option>
+                  <option value="AS/SIS/ESEA">Asia</option>
+                  <option value="AM">Americas</option>
                 </select>
               </div>
             </div>
@@ -683,110 +183,193 @@
             <div class="mini-grid">
               <div class="mini-panel"><h4>🔥 Streak — Top 10</h4>
                 <div class="state" id="streakChartState"><span class="spinner"></span></div>
-                <canvas id="streakChart" style="display:none"></canvas></div>
+                <canvas id="streakChart" style="display:none"></canvas>
+              </div>
               <div class="mini-panel"><h4>🏅 Victories — Top 10</h4>
                 <div class="state" id="victoriesChartState"><span class="spinner"></span></div>
-                <canvas id="victoriesChart" style="display:none"></canvas></div>
+                <canvas id="victoriesChart" style="display:none"></canvas>
+              </div>
               <div class="mini-panel"><h4>⭐ Prestige — Top 10</h4>
                 <div class="state" id="prestigeChartState"><span class="spinner"></span></div>
-                <canvas id="prestigeChart" style="display:none"></canvas></div>
+                <canvas id="prestigeChart" style="display:none"></canvas>
+              </div>
               <div class="mini-panel"><h4>🎯 Majors — by Team</h4>
                 <div class="state" id="majorsChartState"><span class="spinner"></span></div>
-                <canvas id="majorsChart" style="display:none"></canvas></div>
+                <canvas id="majorsChart" style="display:none"></canvas>
+              </div>
               <div class="mini-panel" style="grid-column:1/-1"><h4>📈 Points — Top 20 Line</h4>
                 <div class="state" id="comparisonChartState"><span class="spinner"></span></div>
-                <canvas id="comparisonChart" style="display:none;max-height:220px"></canvas></div>
+                <canvas id="comparisonChart" style="display:none; max-height:220px"></canvas>
+              </div>
             </div>
           </div>
         </div>
+
         <div class="card">
           <div class="card-header">
-            <div><div class="card-title">Wins vs Losses</div><div class="card-subtitle">Select a team</div></div>
-            <select id="teamPieSelect" class="ctrl" style="min-width:160px"></select>
+            <div><div class="card-title">Wins vs Losses</div><div class="card-subtitle">select a team</div></div>
+            <select id="teamPieSelect" class="form-control" style="min-width:180px"></select>
           </div>
           <div class="card-body chart-wrap">
-            <div class="state" id="teamPieState">Select a team above</div>
-            <canvas id="teamPieChart" style="display:none;max-height:280px"></canvas>
+            <div class="state" id="teamPieState">Select a team above.</div>
+            <canvas id="teamPieChart" style="display:none; max-height:280px"></canvas>
           </div>
         </div>
       </div>
 
-      <!-- ═══ REGIONAL VIEW ═══ -->
-      <div class="panel" id="panel-region">
+      <!-- ═══════════════════════════════════════
+           GLOBAL RANKING (VRS style)
+      ═══════════════════════════════════════ -->
+      <div class="panel" id="panel-global">
         <div class="card">
           <div class="card-header">
-            <div><div class="card-title">Regional Ranking</div><div class="card-subtitle">Position changes within region</div></div>
-            <div class="form-group"><label class="form-label">Region</label>
-              <select class="ctrl" id="regionRankingSelect" disabled><option value="">—</option></select>
+            <div><div class="card-title">Global Ranking</div><div class="card-subtitle">Sorted by Points · Old vs New comparison</div></div>
+            <div class="controls-row">
+              <div class="form-group"><label class="form-label">Region</label>
+                <select class="form-control" id="filterRegion" disabled style="min-width:130px"><option value="">All Regions</option></select>
+              </div>
+              <div class="form-group"><label class="form-label">Tier</label>
+                <select class="form-control" id="filterTier" disabled style="min-width:110px">
+                  <option value="">All Tiers</option>
+                  <option value="Tier S">Tier S</option><option value="Tier 1">Tier 1</option>
+                  <option value="Tier 2">Tier 2</option><option value="Tier 3">Tier 3</option>
+                </select>
+              </div>
+              <div class="form-group"><label class="form-label">Search</label>
+                <input class="form-control" id="filterText" type="text" placeholder="Team name…" disabled style="min-width:160px">
+              </div>
+              <div style="display:flex; align-items:flex-end;">
+                <button class="btn btn-ghost" id="btnClearFilters" disabled>✕ Clear</button>
+              </div>
             </div>
           </div>
           <div class="table-wrapper">
-            <table><thead><tr>
-              <th style="width:44px">#</th><th>Team</th><th class="right">Points</th>
-              <th class="right">Δ Pts</th><th class="right">Streak</th><th>Tier</th>
-              <th class="right">Pos Δ</th><th class="right" style="font-size:9px">Old → New</th>
-            </tr></thead>
-            <tbody id="tbodyRegion"><tr><td colspan="8" class="empty-state">Select a region.</td></tr></tbody>
+            <table>
+              <thead><tr>
+                <th style="width:50px">#</th><th>Team</th><th class="right">Points</th>
+                <th class="right">Δ Pts</th><th class="right">Streak</th><th>Region</th>
+                <th>Tier</th><th class="right">Position Δ</th>
+                <th class="right" style="font-size:10px">Old → New</th>
+              </tr></thead>
+              <tbody id="tbody"><tr><td colspan="9" class="empty-state">No data yet. Files are loading…</td></tr></tbody>
             </table>
           </div>
         </div>
       </div>
 
-      <!-- ═══ MATCH PREDICTOR ═══ -->
-      <div class="panel" id="panel-predictor">
-        <div class="card">
-          <div class="card-header"><div><div class="card-title">Match Predictor</div><div class="card-subtitle">ELO-based simulation with streak multiplier</div></div></div>
-          <div class="card-body">
-            <div class="controls-row" style="margin-bottom:14px">
-              <div class="form-group"><label class="form-label">Team A</label><select class="ctrl" id="matchTeamA" disabled><option value="">— Select —</option></select></div>
-              <div style="display:flex;align-items:flex-end;padding-bottom:1px"><span style="font-family:var(--font-display);font-weight:800;color:var(--text-muted);font-size:16px">VS</span></div>
-              <div class="form-group"><label class="form-label">Team B</label><select class="ctrl" id="matchTeamB" disabled><option value="">— Select —</option></select></div>
-              <div class="form-group"><label class="form-label">Result</label>
-                <select class="ctrl" id="matchResult" disabled><option value="A">Team A wins</option><option value="B">Team B wins</option></select>
-              </div>
-            </div>
-            <div id="vsMeter" style="display:none;margin-bottom:14px">
-              <div class="vs-display">
-                <div class="vs-team"><div class="vs-team-name" id="vsAName">—</div><div class="vs-team-pts" id="vsAPts">—</div><div class="text-xs text-muted mono" style="margin-top:3px">Win prob: <strong id="vsAProb">—</strong></div></div>
-                <div><div class="vs-divider">VS</div><div class="vs-prob-bar" style="width:120px;margin-top:6px"><div class="vs-prob-a" id="vsProbBarA" style="width:50%"></div><div class="vs-prob-b" id="vsProbBarB" style="width:50%"></div></div></div>
-                <div class="vs-team"><div class="vs-team-name" id="vsBName">—</div><div class="vs-team-pts" id="vsBPts">—</div><div class="text-xs text-muted mono" style="margin-top:3px">Win prob: <strong id="vsBProb">—</strong></div></div>
-              </div>
-            </div>
-            <div class="status-bar" id="matchStatus" style="margin-bottom:12px"><div class="status-dot"></div><span>Select two teams.</span></div>
-            <div class="table-wrapper" style="max-height:35vh">
-              <table><thead><tr><th style="width:44px">Pos</th><th>Team</th><th class="right">Points</th><th class="right">Streak</th><th class="right">Δ Pts</th><th class="right">New Pts</th><th class="right">Movement</th><th class="right" style="font-size:9px">Old → New</th></tr></thead>
-              <tbody id="tbodyMatchPredict"><tr><td colspan="8" class="empty-state">No selection yet.</td></tr></tbody>
-              </table>
-            </div>
-            <div style="margin-top:8px;font-size:10px;color:var(--text-dim);font-family:var(--font-mono);line-height:1.6">Rules: ELO K=30 × (1+streak bonus) × (1+tournament bonus), capped at K×1.35.</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ═══ TEAM COMPARE (Radar) ═══ -->
-      <div class="panel" id="panel-compare">
+      <!-- ═══════════════════════════════════════
+           REGIONAL RANKING
+      ═══════════════════════════════════════ -->
+      <div class="panel" id="panel-region">
         <div class="card">
           <div class="card-header">
-            <div><div class="card-title">Team vs Team — Radar</div><div class="card-subtitle">Normalized 0-100 · hover for raw values</div></div>
-            <div class="compare-controls">
-              <label>Team A</label><select id="teamCompareA" class="ctrl"></select>
-              <label>Team B</label><select id="teamCompareB" class="ctrl"></select>
+            <div><div class="card-title">Regional Ranking</div><div class="card-subtitle">Position changes computed within region</div></div>
+            <div class="form-group"><label class="form-label">Select Region</label>
+              <select class="form-control" id="regionRankingSelect" disabled><option value="">—</option></select>
             </div>
           </div>
-          <div class="card-body chart-wrap">
-            <div class="state" id="teamCompareState"><span class="spinner"></span>Loading…</div>
-            <canvas id="teamCompareChart" style="display:none;max-height:400px"></canvas>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr>
+                <th style="width:50px">#</th><th>Team</th><th class="right">Points</th>
+                <th class="right">Δ Pts</th><th class="right">Streak</th><th>Tier</th>
+                <th class="right">Position Δ</th>
+                <th class="right" style="font-size:10px">Old → New</th>
+              </tr></thead>
+              <tbody id="tbodyRegion"><tr><td colspan="8" class="empty-state">Select a region to display its ranking.</td></tr></tbody>
+            </table>
+          </div>
+          <div style="padding:12px 16px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); font-family:var(--font-mono);">
+            Movement (Old → New) is calculated within the selected region.
           </div>
         </div>
       </div>
 
-      <!-- ═══ LEGENDS ═══ -->
+      <!-- ═══════════════════════════════════════
+           MATCH PREDICTOR
+      ═══════════════════════════════════════ -->
+      <div class="panel" id="panel-predictor">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Match Predictor</div><div class="card-subtitle">ELO-based simulation with streak multiplier</div></div>
+          </div>
+          <div class="card-body">
+            <div class="controls-row" style="margin-bottom:16px">
+              <div class="form-group"><label class="form-label">Team A</label>
+                <select class="form-control" id="matchTeamA" disabled><option value="">— Select —</option></select>
+              </div>
+              <div style="display:flex; align-items:flex-end; padding-bottom:1px">
+                <span style="font-family:var(--font-display); font-weight:800; color:var(--muted2); font-size:18px">VS</span>
+              </div>
+              <div class="form-group"><label class="form-label">Team B</label>
+                <select class="form-control" id="matchTeamB" disabled><option value="">— Select —</option></select>
+              </div>
+              <div class="form-group"><label class="form-label">Result</label>
+                <select class="form-control" id="matchResult" disabled>
+                  <option value="A">Team A wins</option><option value="B">Team B wins</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="vsMeter" style="display:none; margin-bottom:16px">
+              <div class="vs-display">
+                <div class="vs-team">
+                  <div class="vs-team-name" id="vsAName">—</div>
+                  <div class="vs-team-pts" id="vsAPts">—</div>
+                  <div class="text-xs text-muted mono" style="margin-top:4px">Win prob: <strong id="vsAProb">—</strong></div>
+                </div>
+                <div>
+                  <div class="vs-divider">VS</div>
+                  <div class="vs-prob-bar" style="width:120px; margin-top:8px">
+                    <div class="vs-prob-a" id="vsProbBarA" style="width:50%"></div>
+                    <div class="vs-prob-b" id="vsProbBarB" style="width:50%"></div>
+                  </div>
+                </div>
+                <div class="vs-team">
+                  <div class="vs-team-name" id="vsBName">—</div>
+                  <div class="vs-team-pts" id="vsBPts">—</div>
+                  <div class="text-xs text-muted mono" style="margin-top:4px">Win prob: <strong id="vsBProb">—</strong></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="status-bar" id="matchStatus" style="margin-bottom:14px">
+              <div class="status-dot"></div>
+              <span>Select two teams to preview point and ranking changes.</span>
+            </div>
+
+            <div class="table-wrapper" style="max-height:40vh">
+              <table>
+                <thead><tr>
+                  <th style="width:50px">Pos</th><th>Team</th><th class="right">Points</th>
+                  <th class="right">Streak</th><th class="right">Δ Pts</th><th class="right">New Pts</th>
+                  <th class="right">Movement</th>
+                  <th class="right" style="font-size:10px">Old → New</th>
+                </tr></thead>
+                <tbody id="tbodyMatchPredict"><tr><td colspan="8" class="empty-state">No selection yet.</td></tr></tbody>
+              </table>
+            </div>
+
+            <div style="margin-top:10px; font-size:11px; color:var(--muted); font-family:var(--font-mono); line-height:1.6">
+              Rules: ELO-based point transfer. K = 30 × (1 + streak bonus) × (1 + tournament bonus), capped at K×1.35.
+              Win streak increments after win; resets to 0 after loss.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════
+           LEGENDS HALL
+      ═══════════════════════════════════════ -->
       <div class="panel" id="panel-legends">
         <div class="card">
           <div class="card-header">
             <div><div class="card-title">Legends Hall</div><div class="card-subtitle">Teams with 1700+ points</div></div>
-            <select id="legendsRegionFilter" class="ctrl"><option value="Global">Global</option>
-              <option value="AM">Americas</option><option value="EU">Europe</option><option value="AS/SIS/ESEA">Asia</option>
+            <select id="legendsRegionFilter" class="form-control" style="min-width:130px">
+              <option value="Global">Global</option>
+              <option value="AM">Americas</option>
+              <option value="EU">Europe</option>
+              <option value="AS/SIS/ESEA">Asia</option>
             </select>
           </div>
           <div class="card-body" style="padding:0">
@@ -798,23 +381,31 @@
         </div>
       </div>
 
-      <!-- ═══ VRS ANALYSIS ═══ -->
+      <!-- ═══════════════════════════════════════
+           VRS ANALYSIS
+      ═══════════════════════════════════════ -->
       <div class="panel" id="panel-analysis-vrs">
         <div class="card">
           <div class="card-header">
-            <div><div class="card-title">VRS Analysis</div><div class="card-subtitle">Risers, fallers, streaks & insights</div></div>
-            <button class="btn btn-primary" id="btnRunVrsAnalysis" disabled>🧠 Generate</button>
+            <div><div class="card-title">VRS Analysis</div><div class="card-subtitle">Automated insights from ranking comparison</div></div>
+            <button class="btn btn-primary" id="btnRunVrsAnalysis" disabled>🧠 Generate Analysis</button>
           </div>
-          <div class="card-body"><div id="aiContentVrs"><div class="empty-state">Load data & click Generate.</div></div></div>
+          <div class="card-body">
+            <div id="aiContentVrs">
+              <div class="empty-state">Load ranking data and click <strong>Generate Analysis</strong> to see insights.</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- ═══ DATA INSIGHTS (HLTV AI) ═══ -->
+      <!-- ═══════════════════════════════════════
+           DATA INSIGHTS (HLTV-style)
+      ═══════════════════════════════════════ -->
       <div class="panel" id="panel-analysis-hltv">
         <div class="card">
           <div class="card-header">
-            <div><div class="card-title">Data Insights</div><div class="card-subtitle">Auto-generated from dataset</div></div>
-            <button class="btn btn-ai" id="btnRunHltvAnalysis" disabled>🔬 Analyze</button>
+            <div><div class="card-title">Data Insights</div><div class="card-subtitle">Auto-generated from current dataset</div></div>
+            <button class="btn btn-ai" id="btnRunHltvAnalysis" disabled>🔬 Analyze Data</button>
           </div>
           <div class="card-body">
             <div class="ai-output" id="aiOutputHltv" style="min-height:80px"></div>
@@ -826,574 +417,6 @@
   </main>
 </div>
 
-<script>
-/* ════════════════════════════════════════════════════════════════
-   NEXUS UNIFIED — ALL LOGIC
-════════════════════════════════════════════════════════════════ */
-const $ = sel => document.querySelector(sel);
-const $$ = sel => document.querySelectorAll(sel);
-
-// ─── Constants ───
-const REGION_LABELS = {"AM":"Americas","EU":"Europe","AS/SIS/ESEA":"Asia"};
-const REGION_CLASS = {"AM":"region-am","EU":"region-eu","AS/SIS/ESEA":"region-as"};
-const OLD_URL = "file/old.xlsx";
-const NEW_URL = "file/ranking.xlsx";
-
-// ─── State ───
-let oldRowsCache = null, newRowsCache = null;
-let hltvHeaders = [], hltvRows = [];
-let currentNewTeams = null, lastCombined = null;
-const charts = {};
-
-// ─── Panel switching ───
-const PANEL_TITLES = {
-  dashboard:'Dashboard', global:'Global Ranking', charts:'Charts & Analytics',
-  region:'Regional View', predictor:'Match Predictor', compare:'Team Compare',
-  legends:'Legends Hall', 'analysis-vrs':'VRS Analysis', 'analysis-hltv':'Data Insights'
-};
-function switchPanel(name) {
-  $$('.panel').forEach(p=>p.classList.remove('active'));
-  $$('.nav-item[data-panel]').forEach(n=>n.classList.remove('active'));
-  const p = $(`#panel-${name}`); if(p) p.classList.add('active');
-  const n = $(`[data-panel="${name}"]`); if(n) n.classList.add('active');
-  $('#pageTitle').textContent = PANEL_TITLES[name]||name;
-}
-
-// ─── Status ───
-function setStatus(msg,state='loading'){
-  $('#statusText').textContent=msg;
-  $('#statusDot').className='status-dot '+state;
-}
-
-// ─── Chart defaults ───
-Chart.defaults.color='#5a7099';
-Chart.defaults.font.family="'JetBrains Mono',monospace";
-Chart.defaults.font.size=11;
-
-function baseOpts(extra={}){
-  return{responsive:true,maintainAspectRatio:false,animation:{duration:300},
-    plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(6,10,19,0.96)',titleColor:'#e2ecff',bodyColor:'#c9d8e8',borderColor:'rgba(79,140,255,0.2)',borderWidth:1,padding:8,titleFont:{weight:'700',size:11},bodyFont:{size:10}}},
-    layout:{padding:4},
-    scales:{x:{ticks:{color:'#5a7099',maxRotation:35,font:{size:10}},grid:{color:'rgba(79,140,255,0.04)'}},y:{ticks:{color:'#5a7099',font:{size:10},precision:0},grid:{color:'rgba(79,140,255,0.05)'},beginAtZero:true}},
-    ...extra};
-}
-function destroyChart(k){if(charts[k]){charts[k].destroy();charts[k]=null;}}
-function toggleViz(id,show,msg=''){
-  const c=document.getElementById(id),s=document.getElementById(id+'State');
-  if(c)c.style.display=show?'block':'none';
-  if(s){s.style.display=show?'none':'flex';if(!show&&msg)s.innerHTML=msg;}
-}
-
-// ─── Number parsing (handles EU comma decimals) ───
-function num(v){
-  if(v==null||v==='')return 0;if(typeof v==='number')return isNaN(v)?0:v;
-  const s=v.toString().trim();if(!s)return 0;
-  const commas=(s.match(/,/g)||[]).length,dots=(s.match(/\./g)||[]).length;
-  let n;
-  if(commas===1&&dots===0)n=s.replace(',','.');
-  else if(commas>1&&dots===0)n=s.replace(/,/g,'');
-  else if(dots===1&&commas===0)n=s;
-  else if(dots>1&&commas===0)n=s.replace(/\./g,'');
-  else if(commas>=1&&dots>=1){const lc=s.lastIndexOf(','),ld=s.lastIndexOf('.');n=lc>ld?s.replace(/\./g,'').replace(',','.'):s.replace(/,/g,'');}
-  else n=s;
-  const r=parseFloat(n);return isNaN(r)?0:r;
-}
-function toNumber(v){if(v==null)return NaN;if(typeof v==='number')return v;const s=String(v).replace(/\./g,'').replace(/,/g,'.').trim();const n=Number(s);return Number.isFinite(n)?n:NaN;}
-function ptsFmt(v){const n=typeof v==='number'?v:toNumber(v);return Number.isFinite(n)?Math.trunc(n).toLocaleString():'0';}
-const avg=arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:0;
-const escHtml=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-
-// ─── Excel loading ───
-async function readExcel(url){
-  const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);
-  const data=await res.arrayBuffer();const wb=XLSX.read(data,{type:'array'});
-  const ws=wb.Sheets[wb.SheetNames[0]];
-  return{json:XLSX.utils.sheet_to_json(ws,{defval:'',raw:true}),raw:XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''})};
-}
-
-async function loadAll(force=false){
-  const bust=force?`?v=${Date.now()}`:'';
-  setStatus('Loading old.xlsx…','loading');
-  const oldData=await readExcel(OLD_URL+bust);
-  oldRowsCache=oldData.json;
-
-  setStatus('Loading ranking.xlsx…','loading');
-  const newData=await readExcel(NEW_URL+bust);
-  newRowsCache=newData.json;
-
-  // HLTV-style headers/rows from raw data
-  hltvHeaders=(newData.raw[0]||[]).map(h=>(h??'').toString().trim());
-  hltvRows=newData.raw.slice(1).filter(r=>r.some(c=>c!==undefined&&c!==''));
-
-  setStatus('Processing…','loading');
-  computeVRS();
-  renderDashboard();
-  renderHltvCharts();
-  setStatus(`Loaded — ${hltvRows.length} teams`,'ok');
-
-  // Enable controls
-  enableFilters(true);enableRegion(true);enablePredictor(true);
-  $('#btnRunVrsAnalysis').disabled=false;
-  $('#btnRunHltvAnalysis').disabled=false;
-  $('#btnDownloadCsv').disabled=false;
-}
-
-// ─── VRS data helpers ───
-function normalizeHeader(h){return String(h||'').trim().toLowerCase();}
-function getColumn(row,hm,desired){
-  const cands={team:['team','time','equipe'],points:['points','pontos'],tier:['tier'],region:['region','região','regiao'],
-    victories:['victories','vitorias','vitórias'],streak:['streak','sequencia','sequência'],
-    loses:['loses','losses','derrotas','perdas'],prestige:['prestige','prestígio'],majors:['majors'],trophies:['tournaments trophies','trophies','troféus']}[desired];
-  for(const c of cands){const k=hm[c];if(k!==undefined)return row[k];}return undefined;
-}
-function buildHeaderMap(rows){const m={};const s=rows[0]||{};Object.keys(s).forEach(k=>{m[normalizeHeader(k)]=k;});return m;}
-function buildRanking(rows){
-  const hm=buildHeaderMap(rows);const teams=[];
-  for(const r of rows){
-    const team=String(getColumn(r,hm,'team')??'').trim();if(!team)continue;
-    const points=toNumber(getColumn(r,hm,'points'));
-    teams.push({team,points:Number.isFinite(points)?points:0,
-      tier:String(getColumn(r,hm,'tier')??'').trim(),region:String(getColumn(r,hm,'region')??'').trim(),
-      victories:toNumber(getColumn(r,hm,'victories'))||0,streak:toNumber(getColumn(r,hm,'streak'))||0,
-      loses:toNumber(getColumn(r,hm,'loses'))||0,prestige:toNumber(getColumn(r,hm,'prestige'))||0,
-      majors:toNumber(getColumn(r,hm,'majors'))||0,trophies:toNumber(getColumn(r,hm,'trophies'))||0});
-  }
-  teams.sort((a,b)=>b.points!==a.points?b.points-a.points:a.team.localeCompare(b.team,'en'));
-  teams.forEach((t,i)=>t.pos=i+1);return teams;
-}
-function mapPositions(ts){const m=new Map();ts.forEach(t=>m.set(t.team.toLowerCase(),t.pos));return m;}
-function mapPoints(ts){const m=new Map();ts.forEach(t=>m.set(t.team.toLowerCase(),t.points));return m;}
-function computeDelta(o,n){const d=o-n;if(d===0)return{text:'—',cls:'flat'};return d>0?{text:'+'+d,cls:'up'}:{text:''+d,cls:'down'};}
-function computePointsDiff(o,n){const d=Math.trunc(n)-Math.trunc(o);if(d===0)return{text:'—',cls:'flat'};return d>0?{text:'+'+d.toLocaleString(),cls:'up'}:{text:d.toLocaleString(),cls:'down'};}
-
-function regionLabel(v){return REGION_LABELS[v]||v||'—';}
-function regionCls(v){return REGION_CLASS[v]||'';}
-function tierBadgeClass(t){if(!t)return'';const l=t.toLowerCase();if(l.includes('s'))return'tier-s';if(l.includes('1'))return'tier-1';if(l.includes('2'))return'tier-2';return'tier-3';}
-function rankBadgeHtml(p){if(p===1)return'<span class="rank-badge rank-badge-1">1</span>';if(p===2)return'<span class="rank-badge rank-badge-2">2</span>';if(p===3)return'<span class="rank-badge rank-badge-3">3</span>';return`<span class="rank-badge rank-badge-n">${p}</span>`;}
-function teamNameHtml(n,p){if(p===1)return`<span class="team-name-animated team-name-1">${escHtml(n)}</span>`;if(p===2)return`<span class="team-name-animated team-name-2">${escHtml(n)}</span>`;if(p===3)return`<span class="team-name-animated team-name-3">${escHtml(n)}</span>`;if(p<=10)return`<span class="team-name-animated team-name-top">${escHtml(n)}</span>`;return`<span class="team-name-default">${escHtml(n)}</span>`;}
-function rowClass(p){if(p===1)return'rank-row rank-1';if(p===2)return'rank-row rank-2';if(p===3)return'rank-row rank-3';if(p<=10)return'rank-row rank-top';return'';}
-function streakHtml(s){const v=Number(s)||0;return v===0?'<span class="streak-badge cold">—</span>':`<span class="streak-badge hot">🔥${v}</span>`;}
-
-// ─── VRS compute ───
-function computeVRS(){
-  if(!oldRowsCache||!newRowsCache)return;
-  const oldTeams=buildRanking(oldRowsCache),newTeams=buildRanking(newRowsCache);
-  const oldPosMap=mapPositions(oldTeams),oldPtsMap=mapPoints(oldTeams);
-  const combined=newTeams.map(t=>{
-    const k=t.team.toLowerCase();const oPos=oldPosMap.get(k);const oPts=oldPtsMap.get(k);
-    const pd=oPos?computeDelta(oPos,t.pos):{text:'NEW',cls:'new'};
-    const ptd=oPts!==undefined?computePointsDiff(oPts,t.points):{text:'NEW',cls:'new'};
-    return{...t,oldPos:oPos??null,newPos:t.pos,deltaText:oPos?pd.text:'NEW',deltaCls:oPos?pd.cls:'new',
-      pointsDiffText:oPts!==undefined?ptd.text:'NEW',pointsDiffCls:oPts!==undefined?ptd.cls:'new'};
-  });
-  let up=0,down=0,flat=0,newly=0;
-  combined.forEach(r=>{if(r.deltaText==='NEW')newly++;else if(r.deltaText==='—'||r.deltaText==='0')flat++;else if(r.deltaText.startsWith('+'))up++;else down++;});
-
-  lastCombined=combined;currentNewTeams=newTeams;
-
-  // Update stat cards
-  const avgPts=avg(combined.map(r=>r.points));
-  ['countTeams','sideTeams'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=combined.length;});
-  ['countUp','sideUp'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=up;});
-  ['countDown','sideDown'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=down;});
-  $('#countFlat').textContent=flat;$('#countNew').textContent=newly;
-  $('#countTop').textContent=combined[0]?combined[0].team:'—';
-  $('#countAvg').textContent=Math.round(avgPts);
-  $('#statsRow').style.display='flex';
-
-  updateRegionOptions(combined,'#filterRegion');
-  enableFilters(true);renderGlobalTable(combined);
-
-  updateRegionOptions(combined,'#regionRankingSelect');
-  enableRegion(true);recomputeRegionRanking();
-
-  updateMatchTeamOptions(newTeams);enablePredictor(true);renderMatchPredictor();
-}
-
-// ─── Global table (VRS) ───
-function applyFilters(c){
-  const txt=$('#filterText').value.trim().toLowerCase();
-  const reg=$('#filterRegion').value;const tier=$('#filterTier').value;
-  return c.filter(r=>(!txt||r.team.toLowerCase().includes(txt))&&(!reg||r.region===reg)&&(!tier||r.tier===tier));
-}
-function renderGlobalTable(combined){
-  const tb=$('#tbody');const rows=applyFilters(combined);
-  if(!rows.length){tb.innerHTML='<tr><td colspan="9" class="empty-state">No results.</td></tr>';return;}
-  tb.innerHTML=rows.map(r=>{
-    const o2n=(r.oldPos||'—')+' → '+r.newPos;
-    const dc=r.deltaText==='NEW'?'<span class="delta new">✦ NEW</span>':`<span class="delta ${r.deltaCls}">${r.deltaText}</span>`;
-    const pc=r.pointsDiffText==='NEW'?'<span class="delta new">✦ NEW</span>':`<span class="delta ${r.pointsDiffCls}">${r.pointsDiffText}</span>`;
-    const tc=tierBadgeClass(r.tier);const th=r.tier?`<span class="tier-badge ${tc}">${escHtml(r.tier)}</span>`:'—';
-    const rc=regionCls(r.region);const rh=r.region?`<span class="region-tag ${rc}"><span class="region-dot"></span>${escHtml(regionLabel(r.region))}</span>`:'—';
-    return`<tr class="${rowClass(r.newPos)}"><td>${rankBadgeHtml(r.newPos)}</td><td>${teamNameHtml(r.team,r.newPos)}</td><td class="right mono">${ptsFmt(r.points)}</td><td class="right">${pc}</td><td class="right">${streakHtml(r.streak)}</td><td>${rh}</td><td>${th}</td><td class="right">${dc}</td><td class="right mono text-xs text-muted">${o2n}</td></tr>`;
-  }).join('');
-}
-
-// ─── Dashboard ───
-function renderDashboard(){
-  if(!hltvRows.length)return;
-  const idxTeam=hltvHeaders.indexOf('Team'),idxPts=hltvHeaders.indexOf('Points'),idxRegion=hltvHeaders.indexOf('Region');
-  const metric=$('#dashMetric').value;const idxMetric=hltvHeaders.indexOf(metric);
-
-  // Region chart
-  const buckets={AM:[],EU:[],'AS/SIS/ESEA':[]};
-  hltvRows.forEach(r=>{const reg=(r[idxRegion]||'').toString().trim();if(buckets[reg]!==undefined&&idxMetric>=0)buckets[reg].push(num(r[idxMetric]));});
-  renderRegionChart(['Americas','Europe','Asia'],[avg(buckets.AM),avg(buckets.EU),avg(buckets['AS/SIS/ESEA'])]);
-
-  // Top 10 chart
-  const sorted=[...hltvRows].sort((a,b)=>num(b[idxPts])-num(a[idxPts])).slice(0,10);
-  renderTopChart(sorted,idxTeam,idxPts);
-
-  // Quick table (top 20 with VRS data if available)
-  renderDashTable();
-}
-
-function renderRegionChart(labels,values){
-  destroyChart('regionChart');const el=document.getElementById('regionChart');
-  charts.regionChart=new Chart(el.getContext('2d'),{type:'bar',data:{labels,datasets:[{data:values.map(v=>+v.toFixed(2)),
-    backgroundColor:['rgba(79,140,255,0.7)','rgba(123,95,255,0.7)','rgba(0,232,122,0.7)'],
-    borderColor:['#4f8cff','#7b5fff','#00e87a'],borderWidth:1,borderRadius:4,maxBarThickness:50}]},options:baseOpts()});
-  toggleViz('regionChart',true);
-}
-function renderTopChart(data,ti,pi){
-  destroyChart('topChart');const el=document.getElementById('topChart');
-  const g=el.getContext('2d').createLinearGradient(0,0,0,250);g.addColorStop(0,'rgba(255,215,0,0.9)');g.addColorStop(1,'rgba(202,138,4,0.7)');
-  charts.topChart=new Chart(el.getContext('2d'),{type:'bar',data:{labels:data.map(r=>(r[ti]||'?').toString()),datasets:[{data:data.map(r=>num(r[pi])),backgroundColor:g,borderColor:'rgba(255,215,0,0.4)',borderWidth:1,borderRadius:4,maxBarThickness:44}]},
-    options:{...baseOpts(),scales:{x:{ticks:{color:'#5a7099',font:{size:10},maxRotation:35},grid:{display:false}},y:{ticks:{color:'#5a7099',font:{size:10},precision:0},grid:{color:'rgba(79,140,255,0.05)'},beginAtZero:true}}}});
-  toggleViz('topChart',true);
-}
-function renderDashTable(){
-  if(!lastCombined)return;
-  const top20=lastCombined.slice(0,20);const table=document.getElementById('dashTable');
-  let html='<thead><tr><th>#</th><th>Team</th><th class="right">Points</th><th class="right">Δ Pts</th><th>Region</th><th>Tier</th><th class="right">Pos Δ</th></tr></thead><tbody>';
-  top20.forEach(r=>{
-    const dc=r.deltaText==='NEW'?'<span class="delta new">✦</span>':`<span class="delta ${r.deltaCls}">${r.deltaText}</span>`;
-    const pc=r.pointsDiffText==='NEW'?'<span class="delta new">✦</span>':`<span class="delta ${r.pointsDiffCls}">${r.pointsDiffText}</span>`;
-    const tc=tierBadgeClass(r.tier);const th=r.tier?`<span class="tier-badge ${tc}">${escHtml(r.tier)}</span>`:'—';
-    const rc=regionCls(r.region);const rh=r.region?`<span class="region-tag ${rc}"><span class="region-dot"></span>${escHtml(regionLabel(r.region))}</span>`:'—';
-    html+=`<tr class="${rowClass(r.newPos)}"><td>${rankBadgeHtml(r.newPos)}</td><td>${teamNameHtml(r.team,r.newPos)}</td><td class="right mono">${ptsFmt(r.points)}</td><td class="right">${pc}</td><td>${rh}</td><td>${th}</td><td class="right">${dc}</td></tr>`;
-  });
-  html+='</tbody>';table.innerHTML=html;table.style.display='table';
-  document.getElementById('dashTableState').style.display='none';
-}
-
-// ─── HLTV Charts ───
-function renderHltvCharts(){
-  if(!hltvRows.length)return;
-  const reg=$('#chartRegionFilter').value;
-  const idxTeam=hltvHeaders.indexOf('Team'),idxRegion=hltvHeaders.indexOf('Region');
-  const pool=hltvRows.filter(r=>reg==='Global'||(r[idxRegion]||'').toString().trim()===reg);
-  const idx=h=>hltvHeaders.indexOf(h);
-
-  // Streak
-  const iStreak=idx('Streak');
-  if(iStreak>=0){const t=[...pool].sort((a,b)=>num(b[iStreak])-num(a[iStreak])).slice(0,10);renderMiniBar('streakChart',t.map(r=>(r[idxTeam]||'?').toString()),t.map(r=>num(r[iStreak])),'rgba(123,95,255,0.75)','#7b5fff');}
-  else toggleViz('streakChart',false,'No data');
-
-  // Victories
-  const iVict=idx('Victories');
-  if(iVict>=0){const t=[...pool].sort((a,b)=>num(b[iVict])-num(a[iVict])).slice(0,10);renderMiniBar('victoriesChart',t.map(r=>(r[idxTeam]||'?').toString()),t.map(r=>num(r[iVict])),'rgba(0,232,122,0.75)','#00e87a');}
-  else toggleViz('victoriesChart',false,'No data');
-
-  // Prestige
-  const iPrest=idx('Prestige');
-  if(iPrest>=0){const t=[...pool].sort((a,b)=>num(b[iPrest])-num(a[iPrest])).slice(0,10);renderMiniBar('prestigeChart',t.map(r=>(r[idxTeam]||'?').toString()),t.map(r=>num(r[iPrest])),'rgba(255,215,0,0.8)','#ffd700');}
-  else toggleViz('prestigeChart',false,'No data');
-
-  // Points line
-  const iPts=idx('Points');
-  if(iPts>=0){const t=[...pool].sort((a,b)=>num(b[iPts])-num(a[iPts])).slice(0,20);renderMiniLine('comparisonChart',t.map(r=>(r[idxTeam]||'?').toString()),t.map(r=>num(r[iPts])),'#4f8cff','rgba(79,140,255,0.08)','#7bb8ff','Points');}
-  else toggleViz('comparisonChart',false,'No data');
-
-  // Majors
-  const iMaj=idx('Majors');
-  if(iMaj>=0){const t=[...pool].sort((a,b)=>num(b[iMaj])-num(a[iMaj])).slice(0,20);renderMiniLine('majorsChart',t.map(r=>(r[idxTeam]||'?').toString()),t.map(r=>num(r[iMaj])),'#ff6b35','rgba(255,107,53,0.08)','#fb923c','Majors');}
-  else toggleViz('majorsChart',false,'No data');
-
-  // Pie selector
-  populatePieSelect();renderTeamPie();
-  // Compare selectors
-  populateCompareSelects();renderTeamCompare();
-  // Legends
-  renderLegendsTable();
-}
-
-function renderMiniBar(id,labels,values,bg,border){
-  destroyChart(id);const el=document.getElementById(id);
-  charts[id]=new Chart(el.getContext('2d'),{type:'bar',data:{labels,datasets:[{data:values,backgroundColor:bg,borderColor:border,borderWidth:1,borderRadius:4,maxBarThickness:40}]},
-    options:{...baseOpts(),scales:{x:{ticks:{color:'#5a7099',font:{size:10},maxRotation:35},grid:{display:false}},y:{ticks:{color:'#5a7099',font:{size:10},precision:0},grid:{color:'rgba(79,140,255,0.04)'},beginAtZero:true}}}});
-  el.style.display='block';const s=document.getElementById(id+'State');if(s)s.style.display='none';
-}
-function renderMiniLine(id,labels,values,lineColor,fillColor,pointColor,label){
-  destroyChart(id);const el=document.getElementById(id);
-  charts[id]=new Chart(el.getContext('2d'),{type:'line',data:{labels,datasets:[{label,data:values,borderColor:lineColor,backgroundColor:fillColor,pointBackgroundColor:pointColor,pointRadius:3,pointHoverRadius:5,tension:0.28,fill:true,borderWidth:2}]},
-    options:{...baseOpts(),plugins:{...baseOpts().plugins,legend:{display:true,labels:{color:'#5a7099',font:{size:10}}}}}});
-  el.style.display='block';const s=document.getElementById(id+'State');if(s)s.style.display='none';
-}
-
-// ─── Pie chart ───
-function populatePieSelect(){
-  const sel=$('#teamPieSelect');const idxTeam=hltvHeaders.indexOf('Team');
-  const names=hltvRows.map(r=>(r[idxTeam]||'').toString()).filter(Boolean).sort();
-  sel.innerHTML=`<option value="">— Select —</option>`+names.map(n=>`<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
-}
-function renderTeamPie(){
-  const sel=$('#teamPieSelect');if(!sel.value){toggleViz('teamPieChart',false,'Select a team');return;}
-  const idxTeam=hltvHeaders.indexOf('Team'),idxV=hltvHeaders.indexOf('Victories'),idxL=hltvHeaders.indexOf('Loses');
-  const row=hltvRows.find(r=>(r[idxTeam]||'').toString()===sel.value);
-  if(!row){toggleViz('teamPieChart',false,'Team not found');return;}
-  const w=num(row[idxV]),l=num(row[idxL]);
-  destroyChart('teamPieChart');const el=document.getElementById('teamPieChart');
-  charts.teamPieChart=new Chart(el.getContext('2d'),{type:'doughnut',data:{labels:['Wins','Losses'],datasets:[{data:[w,l],backgroundColor:['rgba(0,232,122,0.8)','rgba(255,64,96,0.8)'],borderColor:['#00e87a','#ff4060'],borderWidth:1}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#c9d8e8',font:{weight:'700'},padding:14}},tooltip:{backgroundColor:'rgba(6,10,19,0.96)',titleColor:'#e2ecff',bodyColor:'#c9d8e8',borderColor:'rgba(79,140,255,0.2)',borderWidth:1}}}});
-  toggleViz('teamPieChart',true);
-}
-
-// ─── Radar compare ───
-function populateCompareSelects(){
-  const idxTeam=hltvHeaders.indexOf('Team');
-  const names=hltvRows.map(r=>(r[idxTeam]||'').toString()).filter(Boolean).sort();
-  const opts=names.map(n=>`<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
-  const a=$('#teamCompareA'),b=$('#teamCompareB');
-  a.innerHTML=opts;b.innerHTML=opts;
-  if(names.length>=2){a.selectedIndex=0;b.selectedIndex=1;}
-}
-function renderTeamCompare(){
-  const selA=$('#teamCompareA'),selB=$('#teamCompareB');
-  if(!selA.value||!selB.value){toggleViz('teamCompareChart',false,'Select two teams');return;}
-  const idxTeam=hltvHeaders.indexOf('Team');
-  const rowA=hltvRows.find(r=>(r[idxTeam]||'').toString()===selA.value);
-  const rowB=hltvRows.find(r=>(r[idxTeam]||'').toString()===selB.value);
-  if(!rowA||!rowB){toggleViz('teamCompareChart',false,'Team not found');return;}
-  const metricMap=[{name:'Points',col:'Points'},{name:'Victories',col:'Victories'},{name:'Streak',col:'Streak'},{name:'Losses',col:'Loses'},{name:'Prestige',col:'Prestige'},{name:'Majors',col:'Majors'},{name:'Trophies',col:'Tournaments Trophies'}];
-  const norm=(v,min,max)=>max===min?50:(v-min)/(max-min)*100;
-  const allVals=metricMap.map(m=>{const idx=hltvHeaders.indexOf(m.col);return hltvRows.map(r=>num(r[idx]));});
-  const mins=allVals.map(a=>Math.min(...a)),maxs=allVals.map(a=>Math.max(...a));
-  const rawA=metricMap.map(m=>num(rowA[hltvHeaders.indexOf(m.col)])),rawB=metricMap.map(m=>num(rowB[hltvHeaders.indexOf(m.col)]));
-  const normA=rawA.map((v,k)=>norm(v,mins[k],maxs[k])),normB=rawB.map((v,k)=>norm(v,mins[k],maxs[k]));
-  destroyChart('teamCompareChart');const el=document.getElementById('teamCompareChart');
-  charts.teamCompareChart=new Chart(el.getContext('2d'),{type:'radar',data:{labels:metricMap.map(m=>m.name),datasets:[
-    {label:selA.value,data:normA,borderColor:'#4f8cff',backgroundColor:'rgba(79,140,255,0.1)',pointBackgroundColor:'#7bb8ff',borderWidth:2,pointRadius:4},
-    {label:selB.value,data:normB,borderColor:'#7b5fff',backgroundColor:'rgba(123,95,255,0.1)',pointBackgroundColor:'#c4b5fd',borderWidth:2,pointRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#c9d8e8',font:{weight:'700'},padding:14}},
-      tooltip:{backgroundColor:'rgba(6,10,19,0.96)',titleColor:'#e2ecff',bodyColor:'#c9d8e8',borderColor:'rgba(79,140,255,0.2)',borderWidth:1,
-        callbacks:{label:tt=>{const i=tt.dataIndex,w=tt.datasetIndex,raw=w===0?rawA[i]:rawB[i],nm=w===0?normA[i]:normB[i];return` ${tt.dataset.label}: ${nm.toFixed(1)}% (raw: ${raw})`;}}}},
-      scales:{r:{min:0,max:100,angleLines:{color:'rgba(79,140,255,0.08)'},grid:{color:'rgba(79,140,255,0.08)'},pointLabels:{color:'#c9d8e8',font:{size:11,weight:'700'}},ticks:{color:'#5a7099',backdropColor:'rgba(6,10,19,0.5)',showLabelBackdrop:true,stepSize:20}}}}});
-  toggleViz('teamCompareChart',true);
-}
-
-// ─── Legends table ───
-function renderLegendsTable(){
-  const legendRegion=$('#legendsRegionFilter').value;
-  const idxTeam=hltvHeaders.indexOf('Team'),idxPts=hltvHeaders.indexOf('Points'),idxRegion=hltvHeaders.indexOf('Region');
-  const legends=hltvRows.filter(r=>{const reg=(r[idxRegion]||'').toString().trim();return num(r[idxPts])>1700&&(legendRegion==='Global'||reg===legendRegion);}).sort((a,b)=>num(b[idxPts])-num(a[idxPts]));
-  const table=document.getElementById('legendsTable');
-  if(!legends.length){table.style.display='none';document.getElementById('legendsTableState').style.display='flex';document.getElementById('legendsTableState').innerHTML='No Legends (1700+ pts) found.';return;}
-  let html='<thead><tr><th>#</th><th>Team</th><th>Region</th><th class="right">Points</th></tr></thead><tbody>';
-  legends.forEach((r,i)=>{
-    const cls=i===0?'legend-gold':i===1?'legend-silver':i===2?'legend-bronze':'legend-other';
-    const reg=idxRegion>=0?(r[idxRegion]||'').toString().trim():'';
-    const bc=reg==='AM'?'badge-AM':reg==='EU'?'badge-EU':reg.includes('AS')?'badge-AS':'';
-    const badge=bc?`<span class="badge ${bc}">${escHtml(reg)}</span>`:escHtml(reg);
-    const rk=i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
-    html+=`<tr class="${cls}"><td>${rk}</td><td style="font-weight:700">${escHtml((r[idxTeam]||'').toString())}</td><td>${badge}</td><td class="right" style="font-weight:800">${num(r[idxPts]).toFixed(2)}</td></tr>`;
-  });
-  html+='</tbody>';table.innerHTML=html;table.style.display='table';
-  document.getElementById('legendsTableState').style.display='none';
-}
-
-// ─── Region ranking (VRS) ───
-function updateRegionOptions(combined,selId){
-  const sel=$(selId);const cur=sel.value;const regs=new Set();combined.forEach(r=>{if(r.region)regs.add(r.region);});
-  const order=['AM','EU','AS/SIS/ESEA'];const list=Array.from(regs).sort((a,b)=>{const ia=order.indexOf(a),ib=order.indexOf(b);return(ia===-1?999:ia)-(ib===-1?999:ib);});
-  const ph=selId==='#filterRegion'?'<option value="">All Regions</option>':'';
-  sel.innerHTML=ph+list.map(v=>`<option value="${escHtml(v)}">${escHtml(regionLabel(v))}</option>`).join('');
-  sel.value=list.includes(cur)?cur:(selId==='#regionRankingSelect'?list[0]||'':'');
-}
-function computeRegionCombined(rv){
-  if(!oldRowsCache||!newRowsCache)return[];
-  const oHM=buildHeaderMap(oldRowsCache),nHM=buildHeaderMap(newRowsCache);
-  const oF=oldRowsCache.filter(r=>String(getColumn(r,oHM,'region')??'').trim()===rv);
-  const nF=newRowsCache.filter(r=>String(getColumn(r,nHM,'region')??'').trim()===rv);
-  const oT=buildRanking(oF),nT=buildRanking(nF);const oPM=mapPositions(oT),oPtM=mapPoints(oT);
-  return nT.map(t=>{const k=t.team.toLowerCase();const oP=oPM.get(k);const oPts=oPtM.get(k);
-    const pd=oP?computeDelta(oP,t.pos):{text:'NEW',cls:'new'};const ptd=oPts!==undefined?computePointsDiff(oPts,t.points):{text:'NEW',cls:'new'};
-    return{...t,oldPos:oP??null,newPos:t.pos,deltaText:oP?pd.text:'NEW',deltaCls:oP?pd.cls:'new',pointsDiffText:oPts!==undefined?ptd.text:'NEW',pointsDiffCls:oPts!==undefined?ptd.cls:'new'};
-  });
-}
-function recomputeRegionRanking(){
-  const v=$('#regionRankingSelect').value;if(!v){$('#tbodyRegion').innerHTML='<tr><td colspan="8" class="empty-state">Select a region.</td></tr>';return;}
-  renderRegionTable(computeRegionCombined(v));
-}
-function renderRegionTable(combined){
-  const tb=$('#tbodyRegion');if(!combined||!combined.length){tb.innerHTML='<tr><td colspan="8" class="empty-state">No data.</td></tr>';return;}
-  tb.innerHTML=combined.map(r=>{
-    const o2n=(r.oldPos||'—')+' → '+r.newPos;
-    const dc=r.deltaText==='NEW'?'<span class="delta new">✦ NEW</span>':`<span class="delta ${r.deltaCls}">${r.deltaText}</span>`;
-    const pc=r.pointsDiffText==='NEW'?'<span class="delta new">✦ NEW</span>':`<span class="delta ${r.pointsDiffCls}">${r.pointsDiffText}</span>`;
-    const tc=tierBadgeClass(r.tier);const th=r.tier?`<span class="tier-badge ${tc}">${escHtml(r.tier)}</span>`:'—';
-    return`<tr class="${rowClass(r.newPos)}"><td>${rankBadgeHtml(r.newPos)}</td><td>${teamNameHtml(r.team,r.newPos)}</td><td class="right mono">${ptsFmt(r.points)}</td><td class="right">${pc}</td><td class="right">${streakHtml(r.streak)}</td><td>${th}</td><td class="right">${dc}</td><td class="right mono text-xs text-muted">${o2n}</td></tr>`;
-  }).join('');
-}
-
-// ─── Enable/disable controls ───
-function enableFilters(on){['filterRegion','filterTier','filterText','btnClearFilters'].forEach(id=>{const e=document.getElementById(id);if(e)e.disabled=!on;});}
-function enableRegion(on){$('#regionRankingSelect').disabled=!on;}
-function enablePredictor(on){['matchTeamA','matchTeamB','matchResult'].forEach(id=>{const e=document.getElementById(id);if(e)e.disabled=!on;});}
-function updateMatchTeamOptions(teams){
-  const sA=$('#matchTeamA'),sB=$('#matchTeamB');const cA=sA.value,cB=sB.value;
-  const opts='<option value="">— Select —</option>'+(teams||[]).map(t=>`<option value="${escHtml(t.team)}">${escHtml(t.team)}</option>`).join('');
-  sA.innerHTML=opts;sB.innerHTML=opts;const names=new Set((teams||[]).map(t=>t.team));sA.value=names.has(cA)?cA:'';sB.value=names.has(cB)?cB:'';
-}
-
-// ─── ELO Engine ───
-const ELO_K_BASE=30,ELO_DIVISOR=400,ELO_STREAK_ALPHA=0.10,ELO_STREAK_SCALE=5,ELO_K_CAP_MULT=1.35;
-const ELO_TOURNEY={regional:0.05,global:0.10,major:0.20};
-function eloExpected(ra,rb){return 1/(1+Math.pow(10,(rb-ra)/ELO_DIVISOR));}
-function tanhL(x){const e=Math.exp(2*x);return(e-1)/(e+1);}
-function streakKBonus(s){return ELO_STREAK_ALPHA*tanhL((s||0)/ELO_STREAK_SCALE);}
-function getBonusForTeam(lName){
-  if(!newRowsCache)return{type:'none',remaining:0};const hm=buildHeaderMap(newRowsCache);
-  for(const r of newRowsCache){const t=String(getColumn(r,hm,'team')??'').trim();if(t.toLowerCase()!==lName)continue;
-    let btk=null,brk=null;for(const k of Object.keys(r)){const nk=normalizeHeader(k);if(nk==='bonustype')btk=k;if(nk==='bonusremaining')brk=k;}
-    const type=btk?String(r[btk]??'').trim().toLowerCase():'none';const rem=brk?toNumber(r[brk]):0;
-    return{type:ELO_TOURNEY[type]!==undefined?type:'none',remaining:Number.isFinite(rem)?rem:0};}
-  return{type:'none',remaining:0};
-}
-function kFinalFor(team){const sb=streakKBonus(team.streak||0);const b=getBonusForTeam(team.team.toLowerCase());const tb=(b.type!=='none'&&b.remaining>0)?(ELO_TOURNEY[b.type]||0):0;return Math.min(ELO_K_BASE*(1+sb)*(1+tb),ELO_K_BASE*ELO_K_CAP_MULT);}
-
-function computeHypoRanking(teams,updates){
-  const h=teams.map(t=>({...t}));for(const ht of h){const u=updates.get(ht.team.toLowerCase());if(u){ht.points=u.newPoints;ht.streak=u.newStreak;}}
-  h.sort((a,b)=>b.points!==a.points?b.points-a.points:a.team.localeCompare(b.team,'en'));h.forEach((t,i)=>t.pos=i+1);return h;
-}
-
-function renderMatchPredictor(){
-  const tb=$('#tbodyMatchPredict'),ms=$('#matchStatus'),vm=$('#vsMeter');
-  if(!currentNewTeams||!currentNewTeams.length){tb.innerHTML='<tr><td colspan="8" class="empty-state">No data.</td></tr>';vm.style.display='none';return;}
-  const aName=$('#matchTeamA').value,bName=$('#matchTeamB').value,result=$('#matchResult').value;
-  if(!aName||!bName){tb.innerHTML='<tr><td colspan="8" class="empty-state">Select two teams.</td></tr>';ms.innerHTML='<div class="status-dot"></div><span>Select Team A and Team B.</span>';vm.style.display='none';return;}
-  if(aName===bName){tb.innerHTML='<tr><td colspan="8" class="empty-state">Pick different teams.</td></tr>';vm.style.display='none';return;}
-  const byName=new Map(currentNewTeams.map(t=>[t.team.toLowerCase(),t]));const a=byName.get(aName.toLowerCase()),b=byName.get(bName.toLowerCase());
-  if(!a||!b){tb.innerHTML='<tr><td colspan="8" class="empty-state">Team not found.</td></tr>';vm.style.display='none';return;}
-  const ra=a.points,rb=b.points;const ea=eloExpected(ra,rb),eb=1-ea;const kA=kFinalFor(a),kB=kFinalFor(b);
-  let aD,bD,aNS,bNS;
-  if(result==='A'){aD=kA*(1-ea);bD=kB*(0-eb);aNS=(a.streak||0)+1;bNS=0;}
-  else{aD=kA*(0-ea);bD=kB*(1-eb);aNS=0;bNS=(b.streak||0)+1;}
-  const aNP=ra+aD,bNP=rb+bD;
-  const updates=new Map([[a.team.toLowerCase(),{newPoints:aNP,newStreak:aNS}],[b.team.toLowerCase(),{newPoints:bNP,newStreak:bNS}]]);
-  const hypo=computeHypoRanking(currentNewTeams,updates);const oPM=mapPositions(currentNewTeams),nPM=mapPositions(hypo);
-  const aOP=oPM.get(a.team.toLowerCase()),bOP=oPM.get(b.team.toLowerCase()),aNPos=nPM.get(a.team.toLowerCase()),bNPos=nPM.get(b.team.toLowerCase());
-  const aM=computeDelta(aOP,aNPos),bM=computeDelta(bOP,bNPos),aPD=computePointsDiff(ra,aNP),bPD=computePointsDiff(rb,bNP);
-  // VS meter
-  vm.style.display='';$('#vsAName').textContent=a.team;$('#vsBName').textContent=b.team;$('#vsAPts').textContent=ptsFmt(ra);$('#vsBPts').textContent=ptsFmt(rb);
-  const aProb=Math.round(ea*100),bProb=100-aProb;$('#vsAProb').textContent=aProb+'%';$('#vsBProb').textContent=bProb+'%';
-  $('#vsProbBarA').style.width=aProb+'%';$('#vsProbBarB').style.width=bProb+'%';
-  function mkRow(team,oP,nP,pts,streak,pd,mv,newPts){
-    return`<tr><td>${rankBadgeHtml(oP)}</td><td>${escHtml(team.team)}</td><td class="right mono">${ptsFmt(pts)}</td><td class="right">${streakHtml(streak)}</td><td class="right"><span class="delta ${pd.cls}">${pd.text}</span></td><td class="right mono">${ptsFmt(newPts)}</td><td class="right"><span class="delta ${mv.cls}">${mv.text}</span></td><td class="right mono text-xs text-muted">${oP} → ${nP}</td></tr>`;
-  }
-  tb.innerHTML=mkRow(a,aOP,aNPos,ra,aNS,aPD,aM,aNP)+mkRow(b,bOP,bNPos,rb,bNS,bPD,bM,bNP);
-  const winner=result==='A'?a.team:b.team;
-  ms.innerHTML=`<div class="status-dot ok"></div><span>${escHtml(winner)} wins · ${escHtml(a.team)}: ${aPD.text} pts (${aM.text}) · ${escHtml(b.team)}: ${bPD.text} pts (${bM.text})</span>`;
-}
-
-// ─── VRS AI Analysis ───
-function runVrsAnalysis(){
-  if(!lastCombined||!lastCombined.length)return;const c=lastCombined,n=c.length;
-  const risers=c.filter(r=>r.deltaText!=='NEW'&&r.deltaText.startsWith('+')).sort((a,b)=>parseInt(b.deltaText)-parseInt(a.deltaText)).slice(0,5);
-  const fallers=c.filter(r=>r.deltaText!=='NEW'&&r.deltaText.startsWith('-')).sort((a,b)=>parseInt(a.deltaText)-parseInt(b.deltaText)).slice(0,5);
-  const ptGainers=c.filter(r=>r.pointsDiffText!=='NEW'&&r.pointsDiffText.startsWith('+')).sort((a,b)=>parseInt(b.pointsDiffText.replace(/[^0-9]/g,''))-parseInt(a.pointsDiffText.replace(/[^0-9]/g,''))).slice(0,5);
-  const hotStreaks=currentNewTeams?[...currentNewTeams].sort((a,b)=>b.streak-a.streak).filter(t=>t.streak>=2).slice(0,5):[];
-  const newTeams=c.filter(r=>r.deltaText==='NEW');
-  const regionDist={};c.forEach(r=>{regionDist[r.region]=(regionDist[r.region]||0)+1;});
-  const pts=c.map(r=>r.points);const avgPts=pts.reduce((a,b)=>a+b,0)/n;const maxPts=Math.max(...pts),minPts=Math.min(...pts);const top1=c[0];
-  const gap12=c.length>=2?Math.trunc(c[0].points-c[1].points):0;
-
-  let html=`<div class="ai-analysis-box"><div class="ai-header"><div class="ai-icon">🧠</div><div><div class="ai-title">Ranking Analysis Report</div><div class="ai-subtitle mono">Generated from ${n} teams · ${new Date().toLocaleDateString()}</div></div></div>`;
-  html+=`<div class="ai-section"><div class="ai-section-title">Overview</div><div class="ai-insight-grid">
-    <div class="ai-insight-card"><div class="ai-insight-label">Leader</div><div class="ai-insight-value">${escHtml(top1.team)}</div><div class="ai-insight-sub">${ptsFmt(top1.points)} pts</div></div>
-    <div class="ai-insight-card"><div class="ai-insight-label">#1 vs #2 Gap</div><div class="ai-insight-value" style="color:var(--warn)">${ptsFmt(gap12)} pts</div><div class="ai-insight-sub">${gap12>200?'Strong dominance':gap12>50?'Moderate lead':'Very tight'}</div></div>
-    <div class="ai-insight-card"><div class="ai-insight-label">Avg Points</div><div class="ai-insight-value">${ptsFmt(avgPts)}</div><div class="ai-insight-sub">Range: ${ptsFmt(minPts)} – ${ptsFmt(maxPts)}</div></div>
-    <div class="ai-insight-card"><div class="ai-insight-label">Movement</div><div class="ai-insight-value">${risers.length+fallers.length}</div><div class="ai-insight-sub">${risers.length} ↑ · ${fallers.length} ↓</div></div>
-    <div class="ai-insight-card"><div class="ai-insight-label">New</div><div class="ai-insight-value warn">${newTeams.length}</div><div class="ai-insight-sub">${newTeams.map(t=>t.team).slice(0,2).join(', ')||'None'}</div></div>
-    <div class="ai-insight-card"><div class="ai-insight-label">Hot Streaks</div><div class="ai-insight-value" style="color:var(--good)">${hotStreaks.length}</div><div class="ai-insight-sub">${hotStreaks.map(t=>t.team+' ('+t.streak+')').slice(0,2).join(', ')||'None'}</div></div>
-  </div></div>`;
-  html+=`<div class="ai-section"><div class="ai-section-title">Region Distribution</div><div class="ai-insight-grid">${Object.entries(regionDist).map(([r,cnt])=>`<div class="ai-insight-card"><div class="ai-insight-label">${escHtml(regionLabel(r))}</div><div class="ai-insight-value">${cnt}</div><div class="ai-insight-sub">${Math.round(cnt/n*100)}%</div></div>`).join('')}</div></div>`;
-  if(risers.length)html+=`<div class="ai-section"><div class="ai-section-title">Biggest Risers</div><div class="ai-list">${risers.map((r,i)=>`<div class="ai-list-item"><div class="ai-list-num">${i+1}</div><div><strong>${escHtml(r.team)}</strong> <span class="delta up">${r.deltaText} pos</span> <span class="delta up">${r.pointsDiffText} pts</span><br><span class="text-xs text-muted mono">${escHtml(regionLabel(r.region))} · Now #${r.newPos}</span></div></div>`).join('')}</div></div>`;
-  if(fallers.length)html+=`<div class="ai-section"><div class="ai-section-title">Biggest Fallers</div><div class="ai-list">${fallers.map((r,i)=>`<div class="ai-list-item"><div class="ai-list-num" style="background:rgba(255,64,96,0.1);color:var(--bad)">${i+1}</div><div><strong>${escHtml(r.team)}</strong> <span class="delta down">${r.deltaText} pos</span> <span class="delta down">${r.pointsDiffText} pts</span><br><span class="text-xs text-muted mono">${escHtml(regionLabel(r.region))} · Now #${r.newPos}</span></div></div>`).join('')}</div></div>`;
-  if(hotStreaks.length)html+=`<div class="ai-section"><div class="ai-section-title">Active Win Streaks</div><div class="ai-list">${hotStreaks.map((t,i)=>`<div class="ai-list-item"><div class="ai-list-num" style="background:rgba(255,185,48,0.1);color:var(--warn)">${i+1}</div><div><strong>${escHtml(t.team)}</strong> 🔥 ${t.streak}-win streak<br><span class="text-xs text-muted mono">${escHtml(regionLabel(t.region))} · #${t.pos} · ${ptsFmt(t.points)} pts</span></div></div>`).join('')}</div></div>`;
-  html+=`</div>`;$('#aiContentVrs').innerHTML=html;
-}
-
-// ─── HLTV AI Analysis ───
-function runHltvAnalysis(){
-  if(!hltvRows.length)return;const output=$('#aiOutputHltv');output.innerHTML='';
-  const idx=h=>hltvHeaders.indexOf(h);
-  const iTeam=idx('Team'),iPts=idx('Points'),iVict=idx('Victories'),iLose=idx('Loses'),iStrk=idx('Streak'),iReg=idx('Region'),iTier=idx('Tier'),iMaj=idx('Majors'),iPrest=idx('Prestige');
-  const get=(r,i)=>i>=0?num(r[i]):0;const name=r=>(r[iTeam]||'?').toString();
-  const byPts=[...hltvRows].sort((a,b)=>get(b,iPts)-get(a,iPts));const t1=byPts[0],t2=byPts[1];
-  const regions={};hltvRows.forEach(r=>{const reg=(iReg>=0?r[iReg]:'Unknown')||'Unknown';if(!regions[reg])regions[reg]={teams:[],pts:[]};regions[reg].teams.push(r);regions[reg].pts.push(get(r,iPts));});
-  const regList=Object.entries(regions).map(([k,v])=>({name:k,count:v.teams.length,avgPts:avg(v.pts),topTeam:[...v.teams].sort((a,b)=>get(b,iPts)-get(a,iPts))[0]})).sort((a,b)=>b.avgPts-a.avgPts);
-  const topReg=regList[0];const byStrk=iStrk>=0?[...hltvRows].sort((a,b)=>get(b,iStrk)-get(a,iStrk)):[];const hotStrk=byStrk[0];const hotVal=hotStrk?get(hotStrk,iStrk):0;
-  const perfect=iLose>=0?hltvRows.filter(r=>get(r,iLose)===0&&get(r,iVict)>0):[];
-  const wrTeams=hltvRows.map(r=>{const w=get(r,iVict),l=get(r,iLose);return{name:name(r),games:w+l,wr:w+l>0?w/(w+l):0,wins:w,losses:l};}).filter(t=>t.games>=3).sort((a,b)=>b.wr-a.wr);
-  const bestWR=wrTeams[0];const legends=byPts.filter(r=>get(r,iPts)>1700);
-  const gap=t1&&t2?(get(t1,iPts)-get(t2,iPts)).toFixed(2):0;
-  const tierCount={};if(iTier>=0)hltvRows.forEach(r=>{const t=r[iTier]||'Unknown';tierCount[t]=(tierCount[t]||0)+1;});
-  let closest=null,closestD=Infinity;for(let i=0;i<Math.min(byPts.length-1,9);i++){const d=Math.abs(get(byPts[i],iPts)-get(byPts[i+1],iPts));if(d<closestD){closestD=d;closest={a:byPts[i],b:byPts[i+1],diff:d};}}
-
-  const L=[];
-  L.push('▸ LEADERBOARD SNAPSHOT');L.push(`  ${hltvRows.length} teams tracked · ${legends.length} at Legend status (1700+ pts) · ${regList.length} active regions`);
-  if(t1)L.push(`  Current #1: ${name(t1)} — ${get(t1,iPts).toFixed(2)} pts${t2?' · leads '+name(t2)+' by '+gap+' pts':''}`);L.push('');
-  L.push('▸ REGIONAL POWER');
-  if(topReg){L.push(`  ${topReg.name} dominates with avg ${topReg.avgPts.toFixed(2)} pts across ${topReg.count} teams`);if(topReg.topTeam)L.push(`  Flagship: ${name(topReg.topTeam)} (${get(topReg.topTeam,iPts).toFixed(2)} pts)`);}
-  regList.forEach(r=>{if(r!==topReg)L.push(`  ${r.name}: ${r.count} teams · avg ${r.avgPts.toFixed(2)} pts`);});L.push('');
-  L.push('▸ MOMENTUM');if(hotStrk&&hotVal>0)L.push(`  Hottest streak: ${name(hotStrk)} on a ${hotVal}-win run`);
-  if(perfect.length>0)L.push(`  Unbeaten: ${perfect.map(r=>name(r)).join(', ')}`);else L.push('  No unbeaten teams');
-  if(bestWR)L.push(`  Best WR (min 3): ${bestWR.name} at ${(bestWR.wr*100).toFixed(1)}% (${bestWR.wins}W-${bestWR.losses}L)`);L.push('');
-  L.push('▸ NOTABLE PATTERNS');if(closest){const pA=byPts.indexOf(closest.a)+1,pB=byPts.indexOf(closest.b)+1;L.push(`  Tightest: #${pA} ${name(closest.a)} vs #${pB} ${name(closest.b)} — ${closest.diff.toFixed(2)} pts apart`);}
-  if(iTier>=0&&Object.keys(tierCount).length)L.push(`  Tiers: ${Object.entries(tierCount).sort((a,b)=>b[1]-a[1]).map(([k,v])=>k+':'+v).join('  ')}`);L.push('');
-  L.push('▸ TOP 5');byPts.slice(0,5).forEach((r,i)=>{const m=['◆','◇','▲','△','○'][i];L.push(`  ${m} #${i+1}  ${name(r).padEnd(22)} ${get(r,iPts).toFixed(2)} pts   ${iVict>=0?get(r,iVict):'—'}W-${iLose>=0?get(r,iLose):'—'}L`);});
-
-  const full=L.join('\n');let pos=0;
-  function tick(){
-    if(pos>=full.length)return;for(let b=0;b<6&&pos<full.length;b++){const ch=full[pos];
-      if(ch==='▸'){const end=full.indexOf('\n',pos);const le=end===-1?full.length:end;const span=document.createElement('span');span.className='ai-header-line';span.textContent=full.slice(pos,le);output.appendChild(span);pos=le;break;}
-      else{output.appendChild(document.createTextNode(ch));pos++;}}
-    requestAnimationFrame(tick);
-  }
-  tick();
-}
-
-// ─── CSV export ───
-function toCsv(c){
-  const h=['Position','Team','Points','Points Diff','Region','Tier','Position Delta','OldPos','NewPos'];const lines=[h.join(',')];
-  for(const r of c)lines.push([r.newPos,`"${String(r.team).replaceAll('"','""')}"`,Math.trunc(r.points),r.pointsDiffText,`"${String(r.region||'').replaceAll('"','""')}"`,`"${String(r.tier||'').replaceAll('"','""')}"`,r.deltaText,r.oldPos??'',r.newPos].join(','));
-  return lines.join('\n');
-}
-function downloadText(fn,content,mime='text/plain'){const b=new Blob([content],{type:mime});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=fn;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}
-
-// ─── Event listeners ───
-$('#btnCompare').addEventListener('click',()=>loadAll(true));
-$('#btnReloadOld').addEventListener('click',async()=>{try{setStatus('Reloading old.xlsx…','loading');const d=await readExcel(OLD_URL+'?v='+Date.now());oldRowsCache=d.json;computeVRS();renderDashboard();setStatus('Reloaded','ok');}catch(e){setStatus('Error reloading old.xlsx','err');}});
-$('#btnReloadNew').addEventListener('click',async()=>{try{setStatus('Reloading ranking.xlsx…','loading');const d=await readExcel(NEW_URL+'?v='+Date.now());newRowsCache=d.json;hltvHeaders=(d.raw[0]||[]).map(h=>(h??'').toString().trim());hltvRows=d.raw.slice(1).filter(r=>r.some(c=>c!==undefined&&c!==''));computeVRS();renderDashboard();renderHltvCharts();setStatus('Reloaded','ok');}catch(e){setStatus('Error reloading ranking.xlsx','err');}});
-['filterText','filterRegion','filterTier'].forEach(id=>{const el=document.getElementById(id);if(el){el.addEventListener('input',()=>{if(lastCombined)renderGlobalTable(lastCombined);});el.addEventListener('change',()=>{if(lastCombined)renderGlobalTable(lastCombined);});}});
-$('#btnClearFilters').addEventListener('click',()=>{$('#filterText').value='';$('#filterRegion').value='';$('#filterTier').value='';if(lastCombined)renderGlobalTable(lastCombined);});
-$('#btnDownloadCsv').addEventListener('click',()=>{if(lastCombined)downloadText('nexus_ranking.csv',toCsv(lastCombined),'text/csv;charset=utf-8');});
-$('#regionRankingSelect').addEventListener('change',recomputeRegionRanking);
-['matchTeamA','matchTeamB','matchResult'].forEach(id=>{document.getElementById(id).addEventListener('change',renderMatchPredictor);});
-$('#btnRunVrsAnalysis').addEventListener('click',()=>{runVrsAnalysis();switchPanel('analysis-vrs');});
-$('#btnRunHltvAnalysis').addEventListener('click',()=>{runHltvAnalysis();switchPanel('analysis-hltv');});
-$('#dashMetric').addEventListener('change',renderDashboard);
-$('#chartRegionFilter').addEventListener('change',renderHltvCharts);
-$('#teamPieSelect').addEventListener('change',renderTeamPie);
-$('#legendsRegionFilter').addEventListener('change',renderLegendsTable);
-document.addEventListener('change',e=>{if(e.target.id==='teamCompareA'||e.target.id==='teamCompareB')renderTeamCompare();});
-
-// Keyboard shortcut: 0 → menu
-document.addEventListener('keydown',e=>{if(e.key!=='0'&&e.code!=='Numpad0')return;const el=document.activeElement,tag=(el?.tagName||'').toLowerCase();if(['input','textarea','select'].includes(tag)||el?.isContentEditable)return;window.location.href='index.html';});
-
-// ─── Auto-load ───
-(async()=>{try{await loadAll(false);}catch(e){console.error(e);setStatus('Auto-load failed. Check /file/*.xlsx paths.','err');}})();
-</script>
+<script src="assets/app.js"></script>
 </body>
 </html>

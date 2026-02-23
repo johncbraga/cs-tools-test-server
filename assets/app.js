@@ -1,0 +1,1019 @@
+/* ═══════════════════════════════════════════════════════════════
+   NEXUS Ranking Command Center — Application Logic
+   Unified HLTV + VRS · KZ Studio · by Kilzys
+═══════════════════════════════════════════════════════════════ */
+
+const $ = sel => document.querySelector(sel);
+const $$ = sel => document.querySelectorAll(sel);
+
+/* ════════════════════════════════════════
+   CONSTANTS
+════════════════════════════════════════ */
+const REGION_LABELS = { "AM": "Americas", "EU": "Europe", "AS/SIS/ESEA": "Asia" };
+const REGION_CLASS = { "AM": "region-am", "EU": "region-eu", "AS/SIS/ESEA": "region-as" };
+const OLD_URL = "file/old.xlsx";
+const NEW_URL = "file/ranking.xlsx";
+
+/* ════════════════════════════════════════
+   GLOBAL STATE
+════════════════════════════════════════ */
+let oldRowsCache = null;
+let newRowsCache = null;
+let hltvHeaders = [];
+let hltvRows = [];
+let currentNewTeams = null;
+let lastCombined = null;
+const charts = {};
+
+/* ════════════════════════════════════════
+   SIDEBAR TOGGLE
+════════════════════════════════════════ */
+const sidebarToggle = $('#sidebarToggle');
+const appShell = $('#appShell');
+
+sidebarToggle.addEventListener('click', () => {
+  appShell.classList.toggle('collapsed');
+  sidebarToggle.textContent = appShell.classList.contains('collapsed') ? '▶' : '◀';
+  // Give charts time to resize
+  setTimeout(() => {
+    Object.values(charts).forEach(c => { if (c) c.resize(); });
+  }, 350);
+});
+
+/* ════════════════════════════════════════
+   PANEL SWITCHING
+════════════════════════════════════════ */
+const PANEL_TITLES = {
+  dashboard: 'Dashboard',
+  charts: 'Charts & Analytics',
+  global: 'Global Ranking',
+  region: 'Regional Ranking',
+  predictor: 'Match Predictor',
+  legends: 'Legends Hall',
+  'analysis-vrs': 'VRS Analysis',
+  'analysis-hltv': 'Data Insights'
+};
+
+function switchPanel(name) {
+  $$('.panel').forEach(p => p.classList.remove('active'));
+  $$('.nav-item[data-panel]').forEach(n => n.classList.remove('active'));
+  const panel = $(`#panel-${name}`);
+  if (panel) panel.classList.add('active');
+  const nav = $(`[data-panel="${name}"]`);
+  if (nav) nav.classList.add('active');
+  $('#pageTitle').textContent = PANEL_TITLES[name] || name;
+}
+
+/* ════════════════════════════════════════
+   STATUS HELPERS
+════════════════════════════════════════ */
+function setStatus(msg, state = 'loading') {
+  $('#statusText').textContent = msg;
+  $('#statusDot').className = 'status-dot ' + state;
+}
+
+/* ════════════════════════════════════════
+   CHART DEFAULTS & HELPERS
+════════════════════════════════════════ */
+Chart.defaults.color = '#5a7099';
+Chart.defaults.font.family = "'JetBrains Mono', monospace";
+Chart.defaults.font.size = 11;
+
+function baseOpts(extra = {}) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    animation: { duration: 300 },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: 'rgba(7,11,18,0.96)', titleColor: '#e8f0ff', bodyColor: '#c9d8e8',
+        borderColor: 'rgba(79,140,255,0.2)', borderWidth: 1, padding: 10,
+        titleFont: { weight: '700', size: 12 }, bodyFont: { size: 11 }
+      }
+    },
+    layout: { padding: 4 },
+    scales: {
+      x: { ticks: { color: '#5a7099', maxRotation: 35, font: { size: 10 } }, grid: { color: 'rgba(79,140,255,0.04)' } },
+      y: { ticks: { color: '#5a7099', font: { size: 10 }, precision: 0 }, grid: { color: 'rgba(79,140,255,0.05)' }, beginAtZero: true }
+    },
+    ...extra
+  };
+}
+
+function destroyChart(k) {
+  if (charts[k]) { charts[k].destroy(); charts[k] = null; }
+}
+
+function toggleViz(id, show, msg = '') {
+  const c = document.getElementById(id);
+  const s = document.getElementById(id + 'State');
+  if (c) c.style.display = show ? 'block' : 'none';
+  if (s) { s.style.display = show ? 'none' : 'flex'; if (!show && msg) s.innerHTML = msg; }
+}
+
+/* ════════════════════════════════════════
+   NUMBER PARSING — handles EU comma decimals
+════════════════════════════════════════ */
+function num(v) {
+  if (v == null || v === '') return 0;
+  if (typeof v === 'number') return isNaN(v) ? 0 : v;
+  const s = v.toString().trim();
+  if (!s) return 0;
+  const commas = (s.match(/,/g) || []).length;
+  const dots = (s.match(/\./g) || []).length;
+  let n;
+  if (commas === 1 && dots === 0) n = s.replace(',', '.');
+  else if (commas > 1 && dots === 0) n = s.replace(/,/g, '');
+  else if (dots === 1 && commas === 0) n = s;
+  else if (dots > 1 && commas === 0) n = s.replace(/\./g, '');
+  else if (commas >= 1 && dots >= 1) {
+    const lc = s.lastIndexOf(','), ld = s.lastIndexOf('.');
+    n = lc > ld ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+  } else n = s;
+  const r = parseFloat(n);
+  return isNaN(r) ? 0 : r;
+}
+
+function toNumber(v) {
+  if (v == null) return NaN;
+  if (typeof v === 'number') return v;
+  const s = String(v).replace(/\./g, '').replace(/,/g, '.').trim();
+  const n = Number(s);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function ptsFmt(v) {
+  const n = typeof v === 'number' ? v : toNumber(v);
+  return Number.isFinite(n) ? Math.trunc(n).toLocaleString() : '0';
+}
+
+const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+
+const escHtml = s => String(s ?? '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/* ════════════════════════════════════════
+   EXCEL LOADING
+════════════════════════════════════════ */
+async function readExcel(url) {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.arrayBuffer();
+  const wb = XLSX.read(data, { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  return {
+    json: XLSX.utils.sheet_to_json(ws, { defval: '', raw: true }),
+    raw: XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' })
+  };
+}
+
+async function loadAll(force = false) {
+  const bust = force ? `?v=${Date.now()}` : '';
+  setStatus('Loading old.xlsx…', 'loading');
+  const oldData = await readExcel(OLD_URL + bust);
+  oldRowsCache = oldData.json;
+
+  setStatus('Loading ranking.xlsx…', 'loading');
+  const newData = await readExcel(NEW_URL + bust);
+  newRowsCache = newData.json;
+
+  hltvHeaders = (newData.raw[0] || []).map(h => (h ?? '').toString().trim());
+  hltvRows = newData.raw.slice(1).filter(r => r.some(c => c !== undefined && c !== ''));
+
+  setStatus('Processing…', 'loading');
+  computeVRS();
+  renderDashboard();
+  renderHltvCharts();
+  setStatus(`Loaded — ${hltvRows.length} teams`, 'ok');
+
+  enableFilters(true);
+  enableRegion(true);
+  enablePredictor(true);
+  $('#btnRunVrsAnalysis').disabled = false;
+  $('#btnRunHltvAnalysis').disabled = false;
+  $('#btnDownloadCsv').disabled = false;
+}
+
+/* ════════════════════════════════════════
+   VRS DATA HELPERS
+════════════════════════════════════════ */
+function normalizeHeader(h) { return String(h || '').trim().toLowerCase(); }
+
+function getColumn(row, hm, desired) {
+  const cands = {
+    team: ['team', 'time', 'equipe'], points: ['points', 'pontos'], tier: ['tier'],
+    region: ['region', 'região', 'regiao'],
+    victories: ['victories', 'vitorias', 'vitórias'],
+    streak: ['streak', 'sequencia', 'sequência'],
+    loses: ['loses', 'losses', 'derrotas', 'perdas'],
+    prestige: ['prestige', 'prestígio'], majors: ['majors'],
+    trophies: ['tournaments trophies', 'trophies', 'troféus']
+  }[desired];
+  for (const c of cands) { const k = hm[c]; if (k !== undefined) return row[k]; }
+  return undefined;
+}
+
+function buildHeaderMap(rows) {
+  const m = {};
+  const s = rows[0] || {};
+  Object.keys(s).forEach(k => { m[normalizeHeader(k)] = k; });
+  return m;
+}
+
+function buildRanking(rows) {
+  const hm = buildHeaderMap(rows);
+  const teams = [];
+  for (const r of rows) {
+    const team = String(getColumn(r, hm, 'team') ?? '').trim();
+    if (!team) continue;
+    const points = toNumber(getColumn(r, hm, 'points'));
+    teams.push({
+      team, points: Number.isFinite(points) ? points : 0,
+      tier: String(getColumn(r, hm, 'tier') ?? '').trim(),
+      region: String(getColumn(r, hm, 'region') ?? '').trim(),
+      victories: toNumber(getColumn(r, hm, 'victories')) || 0,
+      streak: toNumber(getColumn(r, hm, 'streak')) || 0,
+      loses: toNumber(getColumn(r, hm, 'loses')) || 0,
+      prestige: toNumber(getColumn(r, hm, 'prestige')) || 0,
+      majors: toNumber(getColumn(r, hm, 'majors')) || 0,
+      trophies: toNumber(getColumn(r, hm, 'trophies')) || 0
+    });
+  }
+  teams.sort((a, b) => b.points !== a.points ? b.points - a.points : a.team.localeCompare(b.team, 'en'));
+  teams.forEach((t, i) => t.pos = i + 1);
+  return teams;
+}
+
+function mapPositions(ts) { const m = new Map(); ts.forEach(t => m.set(t.team.toLowerCase(), t.pos)); return m; }
+function mapPoints(ts) { const m = new Map(); ts.forEach(t => m.set(t.team.toLowerCase(), t.points)); return m; }
+
+function computeDelta(o, n) {
+  const d = o - n;
+  if (d === 0) return { text: '—', cls: 'flat' };
+  return d > 0 ? { text: '+' + d, cls: 'up' } : { text: '' + d, cls: 'down' };
+}
+
+function computePointsDiff(o, n) {
+  const d = Math.trunc(n) - Math.trunc(o);
+  if (d === 0) return { text: '—', cls: 'flat' };
+  return d > 0 ? { text: '+' + d.toLocaleString(), cls: 'up' } : { text: d.toLocaleString(), cls: 'down' };
+}
+
+/* ════════════════════════════════════════
+   DISPLAY HELPERS
+════════════════════════════════════════ */
+function regionLabel(v) { return REGION_LABELS[v] || v || '—'; }
+function regionCls(v) { return REGION_CLASS[v] || ''; }
+
+function tierBadgeClass(t) {
+  if (!t) return '';
+  const l = t.toLowerCase();
+  if (l.includes('s')) return 'tier-s';
+  if (l.includes('1')) return 'tier-1';
+  if (l.includes('2')) return 'tier-2';
+  return 'tier-3';
+}
+
+function rankBadgeHtml(p) {
+  if (p === 1) return '<span class="rank-badge rank-badge-1">1</span>';
+  if (p === 2) return '<span class="rank-badge rank-badge-2">2</span>';
+  if (p === 3) return '<span class="rank-badge rank-badge-3">3</span>';
+  return `<span class="rank-badge rank-badge-n">${p}</span>`;
+}
+
+function teamNameHtml(n, p) {
+  if (p === 1) return `<span class="team-name-animated team-name-1">${escHtml(n)}</span>`;
+  if (p === 2) return `<span class="team-name-animated team-name-2">${escHtml(n)}</span>`;
+  if (p === 3) return `<span class="team-name-animated team-name-3">${escHtml(n)}</span>`;
+  if (p <= 10) return `<span class="team-name-animated team-name-top">${escHtml(n)}</span>`;
+  return `<span class="team-name-default">${escHtml(n)}</span>`;
+}
+
+function rowClass(p) {
+  if (p === 1) return 'rank-row rank-1';
+  if (p === 2) return 'rank-row rank-2';
+  if (p === 3) return 'rank-row rank-3';
+  if (p <= 10) return 'rank-row rank-top';
+  return '';
+}
+
+function streakHtml(s) {
+  const v = Number(s) || 0;
+  return v === 0 ? '<span class="streak-badge cold">—</span>' : `<span class="streak-badge hot">🔥${v}</span>`;
+}
+
+/* ════════════════════════════════════════
+   VRS COMPUTE
+════════════════════════════════════════ */
+function computeVRS() {
+  if (!oldRowsCache || !newRowsCache) return;
+
+  const oldTeams = buildRanking(oldRowsCache);
+  const newTeams = buildRanking(newRowsCache);
+  const oldPosMap = mapPositions(oldTeams);
+  const oldPtsMap = mapPoints(oldTeams);
+
+  const combined = newTeams.map(t => {
+    const k = t.team.toLowerCase();
+    const oPos = oldPosMap.get(k);
+    const oPts = oldPtsMap.get(k);
+    const pd = oPos ? computeDelta(oPos, t.pos) : { text: 'NEW', cls: 'new' };
+    const ptd = oPts !== undefined ? computePointsDiff(oPts, t.points) : { text: 'NEW', cls: 'new' };
+    return {
+      ...t, oldPos: oPos ?? null, newPos: t.pos,
+      deltaText: oPos ? pd.text : 'NEW', deltaCls: oPos ? pd.cls : 'new',
+      pointsDiffText: oPts !== undefined ? ptd.text : 'NEW',
+      pointsDiffCls: oPts !== undefined ? ptd.cls : 'new'
+    };
+  });
+
+  let up = 0, down = 0, flat = 0, newly = 0;
+  combined.forEach(r => {
+    if (r.deltaText === 'NEW') newly++;
+    else if (r.deltaText === '—' || r.deltaText === '0') flat++;
+    else if (r.deltaText.startsWith('+')) up++;
+    else down++;
+  });
+
+  lastCombined = combined;
+  currentNewTeams = newTeams;
+
+  // Stats
+  const avgPts = avg(combined.map(r => r.points));
+  ['countTeams', 'sideTeams'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = combined.length; });
+  ['countUp', 'sideUp'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = up; });
+  ['countDown', 'sideDown'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = down; });
+  $('#countFlat').textContent = flat;
+  $('#countNew').textContent = newly;
+  $('#countTop').textContent = combined[0] ? combined[0].team : '—';
+  $('#countAvg').textContent = Math.round(avgPts);
+  $('#statsRow').style.display = 'flex';
+
+  updateRegionOptions(combined, '#filterRegion');
+  enableFilters(true);
+  renderGlobalTable(combined);
+
+  updateRegionOptions(combined, '#regionRankingSelect');
+  enableRegion(true);
+  recomputeRegionRanking();
+
+  updateMatchTeamOptions(newTeams);
+  enablePredictor(true);
+  renderMatchPredictor();
+}
+
+/* ════════════════════════════════════════
+   GLOBAL TABLE (VRS)
+════════════════════════════════════════ */
+function applyFilters(c) {
+  const txt = $('#filterText').value.trim().toLowerCase();
+  const reg = $('#filterRegion').value;
+  const tier = $('#filterTier').value;
+  return c.filter(r =>
+    (!txt || r.team.toLowerCase().includes(txt)) &&
+    (!reg || r.region === reg) &&
+    (!tier || r.tier === tier)
+  );
+}
+
+function renderGlobalTable(combined) {
+  const tb = $('#tbody');
+  const rows = applyFilters(combined);
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="9" class="empty-state">No results for current filters.</td></tr>'; return; }
+  tb.innerHTML = rows.map(r => {
+    const o2n = (r.oldPos || '—') + ' → ' + r.newPos;
+    const dc = r.deltaText === 'NEW' ? '<span class="delta new">✦ NEW</span>' : `<span class="delta ${r.deltaCls}">${r.deltaText}</span>`;
+    const pc = r.pointsDiffText === 'NEW' ? '<span class="delta new">✦ NEW</span>' : `<span class="delta ${r.pointsDiffCls}">${r.pointsDiffText}</span>`;
+    const tc = tierBadgeClass(r.tier);
+    const th = r.tier ? `<span class="tier-badge ${tc}">${escHtml(r.tier)}</span>` : '<span class="text-muted text-xs">—</span>';
+    const rc = regionCls(r.region);
+    const rh = r.region ? `<span class="region-tag ${rc}"><span class="region-dot"></span>${escHtml(regionLabel(r.region))}</span>` : '<span class="text-muted">—</span>';
+    return `<tr class="${rowClass(r.newPos)}">
+      <td>${rankBadgeHtml(r.newPos)}</td><td>${teamNameHtml(r.team, r.newPos)}</td>
+      <td class="right mono">${ptsFmt(r.points)}</td><td class="right">${pc}</td>
+      <td class="right">${streakHtml(r.streak)}</td><td>${rh}</td><td>${th}</td>
+      <td class="right">${dc}</td><td class="right mono text-xs text-muted">${o2n}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ════════════════════════════════════════
+   DASHBOARD — responds to metric filter
+════════════════════════════════════════ */
+function renderDashboard() {
+  if (!hltvRows.length) return;
+
+  const metric = $('#dashMetric').value;
+  const idxTeam = hltvHeaders.indexOf('Team');
+  const idxRegion = hltvHeaders.indexOf('Region');
+  const idxMetric = hltvHeaders.indexOf(metric);
+
+  // Region chart
+  const buckets = { AM: [], EU: [], 'AS/SIS/ESEA': [] };
+  hltvRows.forEach(r => {
+    const reg = (r[idxRegion] || '').toString().trim();
+    if (buckets[reg] !== undefined && idxMetric >= 0) buckets[reg].push(num(r[idxMetric]));
+  });
+  renderRegionChart(['Americas', 'Europe', 'Asia'], [avg(buckets.AM), avg(buckets.EU), avg(buckets['AS/SIS/ESEA'])]);
+
+  // Top 10 chart — by selected metric
+  if (idxMetric >= 0) {
+    const isAsc = false; // always desc for top
+    const sorted = [...hltvRows].sort((a, b) => num(b[idxMetric]) - num(a[idxMetric])).slice(0, 10);
+    renderTopChart(sorted, idxTeam, idxMetric, metric);
+    $('#top10Subtitle').textContent = 'by ' + metric;
+  }
+
+  // Top 20 table — sorted by selected metric
+  renderDashTable(metric);
+}
+
+function renderRegionChart(labels, values) {
+  destroyChart('regionChart');
+  const el = document.getElementById('regionChart');
+  charts.regionChart = new Chart(el.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: values.map(v => +v.toFixed(2)),
+        backgroundColor: ['rgba(79,140,255,0.7)', 'rgba(123,95,255,0.7)', 'rgba(0,232,122,0.7)'],
+        borderColor: ['#4f8cff', '#7b5fff', '#00e87a'],
+        borderWidth: 1, borderRadius: 4, maxBarThickness: 52
+      }]
+    },
+    options: baseOpts()
+  });
+  toggleViz('regionChart', true);
+}
+
+function renderTopChart(data, ti, mi, metric) {
+  destroyChart('topChart');
+  const el = document.getElementById('topChart');
+  const ctx = el.getContext('2d');
+  const g = ctx.createLinearGradient(0, 0, 0, 250);
+  g.addColorStop(0, 'rgba(255,215,0,0.9)');
+  g.addColorStop(1, 'rgba(202,138,4,0.7)');
+  charts.topChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(r => (r[ti] || '?').toString()),
+      datasets: [{ label: metric, data: data.map(r => num(r[mi])), backgroundColor: g, borderColor: 'rgba(255,215,0,0.4)', borderWidth: 1, borderRadius: 4, maxBarThickness: 48 }]
+    },
+    options: { ...baseOpts(), scales: { x: { ticks: { color: '#5a7099', font: { size: 10 }, maxRotation: 35 }, grid: { display: false } }, y: { ticks: { color: '#5a7099', font: { size: 10 }, precision: 0 }, grid: { color: 'rgba(79,140,255,0.05)' }, beginAtZero: true } } }
+  });
+  toggleViz('topChart', true);
+}
+
+function renderDashTable(metric) {
+  if (!hltvRows.length) return;
+  const idxTeam = hltvHeaders.indexOf('Team');
+  const idxRegion = hltvHeaders.indexOf('Region');
+  const idxTier = hltvHeaders.indexOf('Tier');
+  const idxMetric = hltvHeaders.indexOf(metric);
+  const idxPts = hltvHeaders.indexOf('Points');
+
+  // Sort by selected metric descending
+  const sorted = idxMetric >= 0
+    ? [...hltvRows].sort((a, b) => num(b[idxMetric]) - num(a[idxMetric])).slice(0, 20)
+    : hltvRows.slice(0, 20);
+
+  $('#dashTableSubtitle').textContent = 'sorted by ' + metric;
+
+  const table = document.getElementById('dashTable');
+  let html = `<thead><tr><th>#</th><th>Team</th><th class="right">${escHtml(metric)}</th><th class="right">Points</th><th>Region</th><th>Tier</th></tr></thead><tbody>`;
+
+  sorted.forEach((r, i) => {
+    const teamName = (r[idxTeam] || '?').toString();
+    const metricVal = idxMetric >= 0 ? num(r[idxMetric]) : 0;
+    const ptsVal = idxPts >= 0 ? num(r[idxPts]) : 0;
+    const reg = idxRegion >= 0 ? (r[idxRegion] || '').toString().trim() : '';
+    const tier = idxTier >= 0 ? (r[idxTier] || '').toString().trim() : '';
+    const rc = regionCls(reg);
+    const rh = reg ? `<span class="region-tag ${rc}"><span class="region-dot"></span>${escHtml(regionLabel(reg))}</span>` : '—';
+    const tc = tierBadgeClass(tier);
+    const th = tier ? `<span class="tier-badge ${tc}">${escHtml(tier)}</span>` : '—';
+    const pos = i + 1;
+
+    // Format metric value
+    let metricDisplay;
+    if (metric === 'Points' || metric === 'Prestige') metricDisplay = metricVal.toFixed(2);
+    else metricDisplay = metricVal;
+
+    html += `<tr class="${rowClass(pos)}">
+      <td>${rankBadgeHtml(pos)}</td>
+      <td>${teamNameHtml(teamName, pos)}</td>
+      <td class="right mono metric-cell">${metricDisplay}</td>
+      <td class="right mono">${ptsVal.toFixed(0)}</td>
+      <td>${rh}</td><td>${th}</td>
+    </tr>`;
+  });
+
+  html += '</tbody>';
+  table.innerHTML = html;
+  table.style.display = 'table';
+  document.getElementById('dashTableState').style.display = 'none';
+}
+
+/* ════════════════════════════════════════
+   HLTV CHARTS
+════════════════════════════════════════ */
+function renderHltvCharts() {
+  if (!hltvRows.length) return;
+  const reg = $('#chartRegionFilter').value;
+  const idxTeam = hltvHeaders.indexOf('Team');
+  const idxRegion = hltvHeaders.indexOf('Region');
+  const pool = hltvRows.filter(r => reg === 'Global' || (r[idxRegion] || '').toString().trim() === reg);
+  const idx = h => hltvHeaders.indexOf(h);
+
+  const render = (col, chartId, bg, border) => {
+    const i = idx(col);
+    if (i >= 0) { const t = [...pool].sort((a, b) => num(b[i]) - num(a[i])).slice(0, 10); renderMiniBar(chartId, t.map(r => (r[idxTeam] || '?').toString()), t.map(r => num(r[i])), bg, border); }
+    else toggleViz(chartId, false, 'No data');
+  };
+
+  render('Streak', 'streakChart', 'rgba(123,95,255,0.75)', '#7b5fff');
+  render('Victories', 'victoriesChart', 'rgba(0,232,122,0.75)', '#00e87a');
+  render('Prestige', 'prestigeChart', 'rgba(255,215,0,0.8)', '#ffd700');
+
+  const iPts = idx('Points');
+  if (iPts >= 0) { const t = [...pool].sort((a, b) => num(b[iPts]) - num(a[iPts])).slice(0, 20); renderMiniLine('comparisonChart', t.map(r => (r[idxTeam] || '?').toString()), t.map(r => num(r[iPts])), '#4f8cff', 'rgba(79,140,255,0.08)', '#7bb8ff', 'Points'); }
+  else toggleViz('comparisonChart', false, 'No data');
+
+  const iMaj = idx('Majors');
+  if (iMaj >= 0) { const t = [...pool].sort((a, b) => num(b[iMaj]) - num(a[iMaj])).slice(0, 20); renderMiniLine('majorsChart', t.map(r => (r[idxTeam] || '?').toString()), t.map(r => num(r[iMaj])), '#ff6b35', 'rgba(255,107,53,0.08)', '#fb923c', 'Majors'); }
+  else toggleViz('majorsChart', false, 'No data');
+
+  populatePieSelect();
+  renderTeamPie();
+  renderLegendsTable();
+}
+
+function renderMiniBar(id, labels, values, bg, border) {
+  destroyChart(id);
+  const el = document.getElementById(id);
+  charts[id] = new Chart(el.getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets: [{ data: values, backgroundColor: bg, borderColor: border, borderWidth: 1, borderRadius: 4, maxBarThickness: 42 }] },
+    options: { ...baseOpts(), scales: { x: { ticks: { color: '#5a7099', font: { size: 10 }, maxRotation: 35 }, grid: { display: false } }, y: { ticks: { color: '#5a7099', font: { size: 10 }, precision: 0 }, grid: { color: 'rgba(79,140,255,0.04)' }, beginAtZero: true } } }
+  });
+  el.style.display = 'block';
+  const s = document.getElementById(id + 'State'); if (s) s.style.display = 'none';
+}
+
+function renderMiniLine(id, labels, values, lineColor, fillColor, pointColor, label) {
+  destroyChart(id);
+  const el = document.getElementById(id);
+  charts[id] = new Chart(el.getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets: [{ label, data: values, borderColor: lineColor, backgroundColor: fillColor, pointBackgroundColor: pointColor, pointRadius: 3, pointHoverRadius: 5, tension: 0.28, fill: true, borderWidth: 2 }] },
+    options: { ...baseOpts(), plugins: { ...baseOpts().plugins, legend: { display: true, labels: { color: '#5a7099', font: { size: 10 } } } } }
+  });
+  el.style.display = 'block';
+  const s = document.getElementById(id + 'State'); if (s) s.style.display = 'none';
+}
+
+/* ════════════════════════════════════════
+   PIE CHART
+════════════════════════════════════════ */
+function populatePieSelect() {
+  const sel = $('#teamPieSelect');
+  const idxTeam = hltvHeaders.indexOf('Team');
+  const names = hltvRows.map(r => (r[idxTeam] || '').toString()).filter(Boolean).sort();
+  sel.innerHTML = '<option value="">— Select —</option>' + names.map(n => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
+}
+
+function renderTeamPie() {
+  const sel = $('#teamPieSelect');
+  if (!sel.value) { toggleViz('teamPieChart', false, 'Select a team'); return; }
+  const idxTeam = hltvHeaders.indexOf('Team'), idxV = hltvHeaders.indexOf('Victories'), idxL = hltvHeaders.indexOf('Loses');
+  const row = hltvRows.find(r => (r[idxTeam] || '').toString() === sel.value);
+  if (!row) { toggleViz('teamPieChart', false, 'Team not found'); return; }
+  const w = num(row[idxV]), l = num(row[idxL]);
+  destroyChart('teamPieChart');
+  const el = document.getElementById('teamPieChart');
+  charts.teamPieChart = new Chart(el.getContext('2d'), {
+    type: 'doughnut',
+    data: { labels: ['Wins', 'Losses'], datasets: [{ data: [w, l], backgroundColor: ['rgba(0,232,122,0.8)', 'rgba(255,64,96,0.8)'], borderColor: ['#00e87a', '#ff4060'], borderWidth: 1 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, labels: { color: '#c9d8e8', font: { weight: '700' }, padding: 14 } }, tooltip: { backgroundColor: 'rgba(7,11,18,0.96)', titleColor: '#e8f0ff', bodyColor: '#c9d8e8', borderColor: 'rgba(79,140,255,0.2)', borderWidth: 1 } } }
+  });
+  toggleViz('teamPieChart', true);
+}
+
+/* ════════════════════════════════════════
+   LEGENDS TABLE
+════════════════════════════════════════ */
+function renderLegendsTable() {
+  const legendRegion = $('#legendsRegionFilter').value;
+  const idxTeam = hltvHeaders.indexOf('Team'), idxPts = hltvHeaders.indexOf('Points'), idxRegion = hltvHeaders.indexOf('Region');
+  const legends = hltvRows
+    .filter(r => { const reg = (r[idxRegion] || '').toString().trim(); return num(r[idxPts]) > 1700 && (legendRegion === 'Global' || reg === legendRegion); })
+    .sort((a, b) => num(b[idxPts]) - num(a[idxPts]));
+  const table = document.getElementById('legendsTable');
+  if (!legends.length) { table.style.display = 'none'; document.getElementById('legendsTableState').style.display = 'flex'; document.getElementById('legendsTableState').innerHTML = 'No Legends (1700+ pts) found.'; return; }
+  let html = '<thead><tr><th>#</th><th>Team</th><th>Region</th><th class="right">Points</th></tr></thead><tbody>';
+  legends.forEach((r, i) => {
+    const cls = i === 0 ? 'legend-gold' : i === 1 ? 'legend-silver' : i === 2 ? 'legend-bronze' : 'legend-other';
+    const reg = idxRegion >= 0 ? (r[idxRegion] || '').toString().trim() : '';
+    const bc = reg === 'AM' ? 'badge-AM' : reg === 'EU' ? 'badge-EU' : reg.includes('AS') ? 'badge-AS' : '';
+    const badge = bc ? `<span class="badge ${bc}">${escHtml(reg)}</span>` : escHtml(reg);
+    const rk = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
+    html += `<tr class="${cls}"><td>${rk}</td><td style="font-weight:700">${escHtml((r[idxTeam] || '').toString())}</td><td>${badge}</td><td class="right" style="font-weight:800">${num(r[idxPts]).toFixed(2)}</td></tr>`;
+  });
+  html += '</tbody>';
+  table.innerHTML = html; table.style.display = 'table';
+  document.getElementById('legendsTableState').style.display = 'none';
+}
+
+/* ════════════════════════════════════════
+   REGIONAL RANKING (VRS)
+════════════════════════════════════════ */
+function updateRegionOptions(combined, selId) {
+  const sel = $(selId); const cur = sel.value;
+  const regs = new Set(); combined.forEach(r => { if (r.region) regs.add(r.region); });
+  const order = ['AM', 'EU', 'AS/SIS/ESEA'];
+  const list = Array.from(regs).sort((a, b) => { const ia = order.indexOf(a), ib = order.indexOf(b); return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib); });
+  const ph = selId === '#filterRegion' ? '<option value="">All Regions</option>' : '';
+  sel.innerHTML = ph + list.map(v => `<option value="${escHtml(v)}">${escHtml(regionLabel(v))}</option>`).join('');
+  sel.value = list.includes(cur) ? cur : (selId === '#regionRankingSelect' ? list[0] || '' : '');
+}
+
+function computeRegionCombined(rv) {
+  if (!oldRowsCache || !newRowsCache) return [];
+  const oHM = buildHeaderMap(oldRowsCache), nHM = buildHeaderMap(newRowsCache);
+  const oF = oldRowsCache.filter(r => String(getColumn(r, oHM, 'region') ?? '').trim() === rv);
+  const nF = newRowsCache.filter(r => String(getColumn(r, nHM, 'region') ?? '').trim() === rv);
+  const oT = buildRanking(oF), nT = buildRanking(nF);
+  const oPM = mapPositions(oT), oPtM = mapPoints(oT);
+  return nT.map(t => {
+    const k = t.team.toLowerCase(); const oP = oPM.get(k); const oPts = oPtM.get(k);
+    const pd = oP ? computeDelta(oP, t.pos) : { text: 'NEW', cls: 'new' };
+    const ptd = oPts !== undefined ? computePointsDiff(oPts, t.points) : { text: 'NEW', cls: 'new' };
+    return { ...t, oldPos: oP ?? null, newPos: t.pos, deltaText: oP ? pd.text : 'NEW', deltaCls: oP ? pd.cls : 'new', pointsDiffText: oPts !== undefined ? ptd.text : 'NEW', pointsDiffCls: oPts !== undefined ? ptd.cls : 'new' };
+  });
+}
+
+function recomputeRegionRanking() {
+  const v = $('#regionRankingSelect').value;
+  if (!v) { $('#tbodyRegion').innerHTML = '<tr><td colspan="8" class="empty-state">Select a region above.</td></tr>'; return; }
+  renderRegionTable(computeRegionCombined(v));
+}
+
+function renderRegionTable(combined) {
+  const tb = $('#tbodyRegion');
+  if (!combined || !combined.length) { tb.innerHTML = '<tr><td colspan="8" class="empty-state">No data for selected region.</td></tr>'; return; }
+  tb.innerHTML = combined.map(r => {
+    const o2n = (r.oldPos || '—') + ' → ' + r.newPos;
+    const dc = r.deltaText === 'NEW' ? '<span class="delta new">✦ NEW</span>' : `<span class="delta ${r.deltaCls}">${r.deltaText}</span>`;
+    const pc = r.pointsDiffText === 'NEW' ? '<span class="delta new">✦ NEW</span>' : `<span class="delta ${r.pointsDiffCls}">${r.pointsDiffText}</span>`;
+    const tc = tierBadgeClass(r.tier); const th = r.tier ? `<span class="tier-badge ${tc}">${escHtml(r.tier)}</span>` : '—';
+    return `<tr class="${rowClass(r.newPos)}"><td>${rankBadgeHtml(r.newPos)}</td><td>${teamNameHtml(r.team, r.newPos)}</td><td class="right mono">${ptsFmt(r.points)}</td><td class="right">${pc}</td><td class="right">${streakHtml(r.streak)}</td><td>${th}</td><td class="right">${dc}</td><td class="right mono text-xs text-muted">${o2n}</td></tr>`;
+  }).join('');
+}
+
+/* ════════════════════════════════════════
+   ENABLE/DISABLE CONTROLS
+════════════════════════════════════════ */
+function enableFilters(on) {
+  ['filterRegion', 'filterTier', 'filterText', 'btnClearFilters'].forEach(id => { const e = document.getElementById(id); if (e) e.disabled = !on; });
+}
+function enableRegion(on) { $('#regionRankingSelect').disabled = !on; }
+function enablePredictor(on) {
+  ['matchTeamA', 'matchTeamB', 'matchResult'].forEach(id => { const e = document.getElementById(id); if (e) e.disabled = !on; });
+}
+
+function updateMatchTeamOptions(teams) {
+  const sA = $('#matchTeamA'), sB = $('#matchTeamB');
+  const cA = sA.value, cB = sB.value;
+  const opts = '<option value="">— Select —</option>' + (teams || []).map(t => `<option value="${escHtml(t.team)}">${escHtml(t.team)}</option>`).join('');
+  sA.innerHTML = opts; sB.innerHTML = opts;
+  const names = new Set((teams || []).map(t => t.team));
+  sA.value = names.has(cA) ? cA : '';
+  sB.value = names.has(cB) ? cB : '';
+}
+
+/* ════════════════════════════════════════
+   ELO ENGINE
+════════════════════════════════════════ */
+const ELO_K_BASE = 30, ELO_DIVISOR = 400, ELO_STREAK_ALPHA = 0.10, ELO_STREAK_SCALE = 5, ELO_K_CAP_MULT = 1.35;
+const ELO_TOURNEY = { regional: 0.05, global: 0.10, major: 0.20 };
+
+function eloExpected(ra, rb) { return 1 / (1 + Math.pow(10, (rb - ra) / ELO_DIVISOR)); }
+function tanhL(x) { const e = Math.exp(2 * x); return (e - 1) / (e + 1); }
+function streakKBonus(s) { return ELO_STREAK_ALPHA * tanhL((s || 0) / ELO_STREAK_SCALE); }
+
+function getBonusForTeam(lName) {
+  if (!newRowsCache) return { type: 'none', remaining: 0 };
+  const hm = buildHeaderMap(newRowsCache);
+  for (const r of newRowsCache) {
+    const t = String(getColumn(r, hm, 'team') ?? '').trim();
+    if (t.toLowerCase() !== lName) continue;
+    let btk = null, brk = null;
+    for (const k of Object.keys(r)) { const nk = normalizeHeader(k); if (nk === 'bonustype') btk = k; if (nk === 'bonusremaining') brk = k; }
+    const type = btk ? String(r[btk] ?? '').trim().toLowerCase() : 'none';
+    const rem = brk ? toNumber(r[brk]) : 0;
+    return { type: ELO_TOURNEY[type] !== undefined ? type : 'none', remaining: Number.isFinite(rem) ? rem : 0 };
+  }
+  return { type: 'none', remaining: 0 };
+}
+
+function kFinalFor(team) {
+  const sb = streakKBonus(team.streak || 0);
+  const b = getBonusForTeam(team.team.toLowerCase());
+  const tb = (b.type !== 'none' && b.remaining > 0) ? (ELO_TOURNEY[b.type] || 0) : 0;
+  return Math.min(ELO_K_BASE * (1 + sb) * (1 + tb), ELO_K_BASE * ELO_K_CAP_MULT);
+}
+
+function computeHypoRanking(teams, updates) {
+  const h = teams.map(t => ({ ...t }));
+  for (const ht of h) { const u = updates.get(ht.team.toLowerCase()); if (u) { ht.points = u.newPoints; ht.streak = u.newStreak; } }
+  h.sort((a, b) => b.points !== a.points ? b.points - a.points : a.team.localeCompare(b.team, 'en'));
+  h.forEach((t, i) => t.pos = i + 1);
+  return h;
+}
+
+function renderMatchPredictor() {
+  const tb = $('#tbodyMatchPredict'), ms = $('#matchStatus'), vm = $('#vsMeter');
+  if (!currentNewTeams || !currentNewTeams.length) { tb.innerHTML = '<tr><td colspan="8" class="empty-state">No data loaded.</td></tr>'; ms.innerHTML = '<div class="status-dot"></div><span>Load ranking data first.</span>'; vm.style.display = 'none'; return; }
+  const aName = $('#matchTeamA').value, bName = $('#matchTeamB').value, result = $('#matchResult').value;
+  if (!aName || !bName) { tb.innerHTML = '<tr><td colspan="8" class="empty-state">Select two teams.</td></tr>'; ms.innerHTML = '<div class="status-dot"></div><span>Select Team A and Team B above.</span>'; vm.style.display = 'none'; return; }
+  if (aName === bName) { tb.innerHTML = '<tr><td colspan="8" class="empty-state">Pick two different teams.</td></tr>'; ms.innerHTML = '<div class="status-dot err"></div><span>Team A and Team B must be different.</span>'; vm.style.display = 'none'; return; }
+  const byName = new Map(currentNewTeams.map(t => [t.team.toLowerCase(), t]));
+  const a = byName.get(aName.toLowerCase()), b = byName.get(bName.toLowerCase());
+  if (!a || !b) { tb.innerHTML = '<tr><td colspan="8" class="empty-state">Team not found.</td></tr>'; vm.style.display = 'none'; return; }
+  const ra = a.points, rb = b.points, ea = eloExpected(ra, rb), eb = 1 - ea;
+  const kA = kFinalFor(a), kB = kFinalFor(b);
+  let aD, bD, aNS, bNS;
+  if (result === 'A') { aD = kA * (1 - ea); bD = kB * (0 - eb); aNS = (a.streak || 0) + 1; bNS = 0; }
+  else { aD = kA * (0 - ea); bD = kB * (1 - eb); aNS = 0; bNS = (b.streak || 0) + 1; }
+  const aNP = ra + aD, bNP = rb + bD;
+  const updates = new Map([[a.team.toLowerCase(), { newPoints: aNP, newStreak: aNS }], [b.team.toLowerCase(), { newPoints: bNP, newStreak: bNS }]]);
+  const hypo = computeHypoRanking(currentNewTeams, updates);
+  const oPM = mapPositions(currentNewTeams), nPM = mapPositions(hypo);
+  const aOP = oPM.get(a.team.toLowerCase()), bOP = oPM.get(b.team.toLowerCase());
+  const aNPos = nPM.get(a.team.toLowerCase()), bNPos = nPM.get(b.team.toLowerCase());
+  const aM = computeDelta(aOP, aNPos), bM = computeDelta(bOP, bNPos), aPD = computePointsDiff(ra, aNP), bPD = computePointsDiff(rb, bNP);
+
+  vm.style.display = '';
+  $('#vsAName').textContent = a.team; $('#vsBName').textContent = b.team;
+  $('#vsAPts').textContent = ptsFmt(ra); $('#vsBPts').textContent = ptsFmt(rb);
+  const aProb = Math.round(ea * 100), bProb = 100 - aProb;
+  $('#vsAProb').textContent = aProb + '%'; $('#vsBProb').textContent = bProb + '%';
+  $('#vsProbBarA').style.width = aProb + '%'; $('#vsProbBarB').style.width = bProb + '%';
+
+  function mkRow(team, oP, nP, pts, streak, pd, mv, newPts) {
+    return `<tr><td>${rankBadgeHtml(oP)}</td><td>${escHtml(team.team)}</td><td class="right mono">${ptsFmt(pts)}</td><td class="right">${streakHtml(streak)}</td><td class="right"><span class="delta ${pd.cls}">${pd.text}</span></td><td class="right mono">${ptsFmt(newPts)}</td><td class="right"><span class="delta ${mv.cls}">${mv.text}</span></td><td class="right mono text-xs text-muted">${oP} → ${nP}</td></tr>`;
+  }
+  tb.innerHTML = mkRow(a, aOP, aNPos, ra, aNS, aPD, aM, aNP) + mkRow(b, bOP, bNPos, rb, bNS, bPD, bM, bNP);
+  const winner = result === 'A' ? a.team : b.team;
+  ms.innerHTML = `<div class="status-dot ok"></div><span>Scenario: <strong>${escHtml(winner)}</strong> wins. ${escHtml(a.team)}: ${aPD.text} pts (${aM.text} positions). ${escHtml(b.team)}: ${bPD.text} pts (${bM.text} positions).</span>`;
+}
+
+/* ════════════════════════════════════════
+   VRS ANALYSIS — Enhanced
+════════════════════════════════════════ */
+function runVrsAnalysis() {
+  if (!lastCombined || !lastCombined.length) return;
+  const c = lastCombined, n = c.length;
+
+  const risers = c.filter(r => r.deltaText !== 'NEW' && r.deltaText.startsWith('+')).sort((a, b) => parseInt(b.deltaText) - parseInt(a.deltaText)).slice(0, 5);
+  const fallers = c.filter(r => r.deltaText !== 'NEW' && r.deltaText.startsWith('-')).sort((a, b) => parseInt(a.deltaText) - parseInt(b.deltaText)).slice(0, 5);
+  const ptGainers = c.filter(r => r.pointsDiffText !== 'NEW' && r.pointsDiffText.startsWith('+')).sort((a, b) => parseInt(b.pointsDiffText.replace(/[^0-9]/g, '')) - parseInt(a.pointsDiffText.replace(/[^0-9]/g, ''))).slice(0, 5);
+  const ptLosers = c.filter(r => r.pointsDiffText !== 'NEW' && r.pointsDiffText.startsWith('-')).sort((a, b) => parseInt(a.pointsDiffText.replace(/[^0-9-]/g, '')) - parseInt(b.pointsDiffText.replace(/[^0-9-]/g, ''))).slice(0, 5);
+  const hotStreaks = currentNewTeams ? [...currentNewTeams].sort((a, b) => b.streak - a.streak).filter(t => t.streak >= 2).slice(0, 5) : [];
+  const newTeams = c.filter(r => r.deltaText === 'NEW');
+  const regionDist = {}; c.forEach(r => { regionDist[r.region] = (regionDist[r.region] || 0) + 1; });
+  const tierDist = {}; c.forEach(r => { tierDist[r.tier || 'Unknown'] = (tierDist[r.tier || 'Unknown'] || 0) + 1; });
+  const pts = c.map(r => r.points);
+  const avgPts = pts.reduce((a, b) => a + b, 0) / n;
+  const maxPts = Math.max(...pts), minPts = Math.min(...pts);
+  const top1 = c[0], top5 = c.slice(0, 5);
+  const gap12 = c.length >= 2 ? Math.trunc(c[0].points - c[1].points) : 0;
+
+  // Regional averages
+  const regAvg = {};
+  c.forEach(r => { if (!regAvg[r.region]) regAvg[r.region] = []; regAvg[r.region].push(r.points); });
+  const regAvgEntries = Object.entries(regAvg).map(([k, v]) => ({ reg: k, avg: avg(v), count: v.length, top: c.filter(t => t.region === k)[0] })).sort((a, b) => b.avg - a.avg);
+
+  // Win rate leaders
+  const wrLeaders = currentNewTeams ? [...currentNewTeams]
+    .map(t => ({ ...t, games: t.victories + t.loses, wr: (t.victories + t.loses) > 0 ? t.victories / (t.victories + t.loses) : 0 }))
+    .filter(t => t.games >= 3)
+    .sort((a, b) => b.wr - a.wr).slice(0, 5) : [];
+
+  // Closest battles (tightest point gaps in top 10)
+  const closeBattles = [];
+  for (let i = 0; i < Math.min(c.length - 1, 15); i++) {
+    const diff = Math.abs(c[i].points - c[i + 1].points);
+    if (diff < 5) closeBattles.push({ a: c[i], b: c[i + 1], diff, posA: i + 1, posB: i + 2 });
+  }
+  closeBattles.sort((a, b) => a.diff - b.diff);
+
+  let html = `<div class="ai-analysis-box">
+    <div class="ai-header"><div class="ai-icon">🧠</div><div>
+      <div class="ai-title">Ranking Analysis Report</div>
+      <div class="ai-subtitle mono">Generated from ${n} teams · ${new Date().toLocaleDateString()}</div>
+    </div></div>`;
+
+  // Overview
+  html += `<div class="ai-section"><div class="ai-section-title">Overview</div><div class="ai-insight-grid">
+    <div class="ai-insight-card"><div class="ai-insight-label">Leader</div><div class="ai-insight-value">${escHtml(top1.team)}</div><div class="ai-insight-sub">${ptsFmt(top1.points)} pts · ${escHtml(regionLabel(top1.region))}</div></div>
+    <div class="ai-insight-card"><div class="ai-insight-label">#1 vs #2 Gap</div><div class="ai-insight-value" style="color:var(--warn)">${ptsFmt(gap12)} pts</div><div class="ai-insight-sub">${gap12 > 200 ? 'Strong dominance' : gap12 > 50 ? 'Moderate lead' : 'Very tight at the top'}</div></div>
+    <div class="ai-insight-card"><div class="ai-insight-label">Avg Points</div><div class="ai-insight-value">${ptsFmt(avgPts)}</div><div class="ai-insight-sub">Range: ${ptsFmt(minPts)} – ${ptsFmt(maxPts)}</div></div>
+    <div class="ai-insight-card"><div class="ai-insight-label">Movement</div><div class="ai-insight-value">${risers.length + fallers.length}</div><div class="ai-insight-sub">${risers.length} ↑ risen · ${fallers.length} ↓ fallen</div></div>
+    <div class="ai-insight-card"><div class="ai-insight-label">New Entries</div><div class="ai-insight-value" style="color:var(--warn)">${newTeams.length}</div><div class="ai-insight-sub">${newTeams.map(t => t.team).slice(0, 3).join(', ') || 'None'}${newTeams.length > 3 ? '…' : ''}</div></div>
+    <div class="ai-insight-card"><div class="ai-insight-label">Hot Streaks</div><div class="ai-insight-value" style="color:var(--good)">${hotStreaks.length}</div><div class="ai-insight-sub">${hotStreaks.map(t => t.team + ' (' + t.streak + ')').slice(0, 2).join(', ') || 'None'}</div></div>
+  </div></div>`;
+
+  // Region distribution
+  html += `<div class="ai-section"><div class="ai-section-title">Region Distribution</div><div class="ai-insight-grid">
+    ${regAvgEntries.map(r => `<div class="ai-insight-card"><div class="ai-insight-label">${escHtml(regionLabel(r.reg))}</div><div class="ai-insight-value">${r.count} teams</div><div class="ai-insight-sub">Avg: ${ptsFmt(r.avg)} pts · Top: ${escHtml(r.top ? r.top.team : '—')}</div></div>`).join('')}
+  </div></div>`;
+
+  // Tier distribution
+  html += `<div class="ai-section"><div class="ai-section-title">Tier Distribution</div><div class="ai-insight-grid">
+    ${Object.entries(tierDist).sort((a, b) => b[1] - a[1]).map(([t, cnt]) => `<div class="ai-insight-card"><div class="ai-insight-label">${escHtml(t)}</div><div class="ai-insight-value">${cnt}</div><div class="ai-insight-sub">${Math.round(cnt / n * 100)}% of field</div></div>`).join('')}
+  </div></div>`;
+
+  // Risers
+  if (risers.length) html += `<div class="ai-section"><div class="ai-section-title">Biggest Risers</div><div class="ai-list">${risers.map((r, i) => `<div class="ai-list-item"><div class="ai-list-num">${i + 1}</div><div><strong>${escHtml(r.team)}</strong> <span class="delta up" style="margin-left:8px">${r.deltaText} positions</span> <span class="delta up" style="margin-left:8px">${r.pointsDiffText} pts</span><br><span class="text-xs text-muted mono">${escHtml(regionLabel(r.region))} · ${escHtml(r.tier || '—')} · Now #${r.newPos}</span></div></div>`).join('')}</div></div>`;
+
+  // Fallers
+  if (fallers.length) html += `<div class="ai-section"><div class="ai-section-title">Biggest Fallers</div><div class="ai-list">${fallers.map((r, i) => `<div class="ai-list-item"><div class="ai-list-num" style="background:rgba(255,64,96,0.1);color:var(--bad)">${i + 1}</div><div><strong>${escHtml(r.team)}</strong> <span class="delta down" style="margin-left:8px">${r.deltaText} positions</span> <span class="delta down" style="margin-left:8px">${r.pointsDiffText} pts</span><br><span class="text-xs text-muted mono">${escHtml(regionLabel(r.region))} · ${escHtml(r.tier || '—')} · Now #${r.newPos}</span></div></div>`).join('')}</div></div>`;
+
+  // Point gainers
+  if (ptGainers.length) html += `<div class="ai-section"><div class="ai-section-title">Biggest Point Gains</div><div class="ai-list">${ptGainers.map((r, i) => `<div class="ai-list-item"><div class="ai-list-num" style="background:rgba(0,232,122,0.1);color:var(--good)">${i + 1}</div><div><strong>${escHtml(r.team)}</strong> <span class="delta up">${r.pointsDiffText} pts</span><br><span class="text-xs text-muted mono">${escHtml(regionLabel(r.region))} · #${r.newPos}</span></div></div>`).join('')}</div></div>`;
+
+  // Point losers
+  if (ptLosers.length) html += `<div class="ai-section"><div class="ai-section-title">Biggest Point Losses</div><div class="ai-list">${ptLosers.map((r, i) => `<div class="ai-list-item"><div class="ai-list-num" style="background:rgba(255,64,96,0.1);color:var(--bad)">${i + 1}</div><div><strong>${escHtml(r.team)}</strong> <span class="delta down">${r.pointsDiffText} pts</span><br><span class="text-xs text-muted mono">${escHtml(regionLabel(r.region))} · #${r.newPos}</span></div></div>`).join('')}</div></div>`;
+
+  // Hot streaks
+  if (hotStreaks.length) html += `<div class="ai-section"><div class="ai-section-title">Active Win Streaks</div><div class="ai-list">${hotStreaks.map((t, i) => `<div class="ai-list-item"><div class="ai-list-num" style="background:rgba(255,185,48,0.1);color:var(--warn)">${i + 1}</div><div><strong>${escHtml(t.team)}</strong> <span style="margin-left:8px">🔥 ${t.streak}-win streak</span><br><span class="text-xs text-muted mono">${escHtml(regionLabel(t.region))} · #${t.pos} · ${ptsFmt(t.points)} pts</span></div></div>`).join('')}</div></div>`;
+
+  // Win rate leaders
+  if (wrLeaders.length) html += `<div class="ai-section"><div class="ai-section-title">Win Rate Leaders (min 3 games)</div><div class="ai-list">${wrLeaders.map((t, i) => `<div class="ai-list-item"><div class="ai-list-num">${i + 1}</div><div><strong>${escHtml(t.team)}</strong> <span style="margin-left:8px;color:var(--good);font-weight:700;font-family:var(--font-mono)">${(t.wr * 100).toFixed(1)}%</span><br><span class="text-xs text-muted mono">${t.victories}W-${t.loses}L · ${escHtml(regionLabel(t.region))} · #${t.pos}</span></div></div>`).join('')}</div></div>`;
+
+  // Close battles
+  if (closeBattles.length) html += `<div class="ai-section"><div class="ai-section-title">Tightest Battles</div><div class="ai-list">${closeBattles.slice(0, 5).map((b, i) => `<div class="ai-list-item"><div class="ai-list-num" style="background:rgba(255,185,48,0.1);color:var(--warn)">${i + 1}</div><div>#${b.posA} <strong>${escHtml(b.a.team)}</strong> vs #${b.posB} <strong>${escHtml(b.b.team)}</strong> — <span style="color:var(--warn);font-weight:700">${b.diff.toFixed(2)} pts apart</span></div></div>`).join('')}</div></div>`;
+
+  // Key takeaways
+  html += `<div class="ai-section"><div class="ai-section-title">Key Takeaways</div><div class="ai-list">${[
+    top1 ? `<strong>${escHtml(top1.team)}</strong> leads with ${ptsFmt(top1.points)} points, a ${ptsFmt(gap12)}-point gap over the runner-up.` : null,
+    hotStreaks.length ? `${escHtml(hotStreaks[0].team)} is on the hottest streak (${hotStreaks[0].streak} consecutive wins), amplifying ELO K-factor.` : null,
+    newTeams.length ? `${newTeams.length} new team${newTeams.length > 1 ? 's' : ''} entered the ranking: ${escHtml(newTeams.map(t => t.team).join(', '))}.` : null,
+    risers.length ? `Most impressive riser: <strong>${escHtml(risers[0].team)}</strong>, climbing ${risers[0].deltaText} positions.` : null,
+    fallers.length ? `<strong>${escHtml(fallers[0].team)}</strong> suffered the steepest drop: ${fallers[0].deltaText} positions.` : null,
+    `Average points: ${ptsFmt(avgPts)}. Spread (${ptsFmt(maxPts)} − ${ptsFmt(minPts)}) = ${ptsFmt(maxPts - minPts)} pts → ${(maxPts - minPts) > 500 ? 'highly stratified' : 'competitive'} field.`,
+    regAvgEntries.length ? `Strongest region by avg points: <strong>${escHtml(regionLabel(regAvgEntries[0].reg))}</strong> with ${ptsFmt(regAvgEntries[0].avg)} avg pts.` : null
+  ].filter(Boolean).map((txt, i) => `<div class="ai-list-item"><div class="ai-list-num">${i + 1}</div><div>${txt}</div></div>`).join('')}</div></div>`;
+
+  html += `</div>`;
+  $('#aiContentVrs').innerHTML = html;
+}
+
+/* ════════════════════════════════════════
+   DATA INSIGHTS (HLTV typewriter)
+════════════════════════════════════════ */
+function runHltvAnalysis() {
+  if (!hltvRows.length) return;
+  const output = $('#aiOutputHltv'); output.innerHTML = '';
+  const idx = h => hltvHeaders.indexOf(h);
+  const iTeam = idx('Team'), iPts = idx('Points'), iVict = idx('Victories'), iLose = idx('Loses');
+  const iStrk = idx('Streak'), iReg = idx('Region'), iTier = idx('Tier'), iMaj = idx('Majors'), iPrest = idx('Prestige');
+  const get = (r, i) => i >= 0 ? num(r[i]) : 0;
+  const name = r => (r[iTeam] || '?').toString();
+  const byPts = [...hltvRows].sort((a, b) => get(b, iPts) - get(a, iPts));
+  const t1 = byPts[0], t2 = byPts[1];
+  const regions = {};
+  hltvRows.forEach(r => { const reg = (iReg >= 0 ? r[iReg] : 'Unknown') || 'Unknown'; if (!regions[reg]) regions[reg] = { teams: [], pts: [] }; regions[reg].teams.push(r); regions[reg].pts.push(get(r, iPts)); });
+  const regList = Object.entries(regions).map(([k, v]) => ({ name: k, count: v.teams.length, avgPts: avg(v.pts), topTeam: [...v.teams].sort((a, b) => get(b, iPts) - get(a, iPts))[0] })).sort((a, b) => b.avgPts - a.avgPts);
+  const topReg = regList[0];
+  const byStrk = iStrk >= 0 ? [...hltvRows].sort((a, b) => get(b, iStrk) - get(a, iStrk)) : [];
+  const hotStrk = byStrk[0]; const hotVal = hotStrk ? get(hotStrk, iStrk) : 0;
+  const perfect = iLose >= 0 ? hltvRows.filter(r => get(r, iLose) === 0 && get(r, iVict) > 0) : [];
+  const wrTeams = hltvRows.map(r => { const w = get(r, iVict), l = get(r, iLose); return { name: name(r), games: w + l, wr: w + l > 0 ? w / (w + l) : 0, wins: w, losses: l }; }).filter(t => t.games >= 3).sort((a, b) => b.wr - a.wr);
+  const bestWR = wrTeams[0]; const legends = byPts.filter(r => get(r, iPts) > 1700);
+  const gap = t1 && t2 ? (get(t1, iPts) - get(t2, iPts)).toFixed(2) : 0;
+  const tierCount = {}; if (iTier >= 0) hltvRows.forEach(r => { const t = r[iTier] || 'Unknown'; tierCount[t] = (tierCount[t] || 0) + 1; });
+  let closest = null, closestD = Infinity;
+  for (let i = 0; i < Math.min(byPts.length - 1, 9); i++) { const d = Math.abs(get(byPts[i], iPts) - get(byPts[i + 1], iPts)); if (d < closestD) { closestD = d; closest = { a: byPts[i], b: byPts[i + 1], diff: d }; } }
+
+  const L = [];
+  L.push('▸ LEADERBOARD SNAPSHOT');
+  L.push(`  ${hltvRows.length} teams tracked · ${legends.length} at Legend status (1700+ pts) · ${regList.length} active regions`);
+  if (t1) L.push(`  Current #1: ${name(t1)} — ${get(t1, iPts).toFixed(2)} pts${t2 ? ' · leads ' + name(t2) + ' by ' + gap + ' pts' : ''}`);
+  L.push('');
+  L.push('▸ REGIONAL POWER');
+  if (topReg) { L.push(`  ${topReg.name} dominates with avg ${topReg.avgPts.toFixed(2)} pts across ${topReg.count} teams`); if (topReg.topTeam) L.push(`  Region flagship: ${name(topReg.topTeam)} (${get(topReg.topTeam, iPts).toFixed(2)} pts)`); }
+  regList.forEach(r => { if (r !== topReg) L.push(`  ${r.name}: ${r.count} teams · avg ${r.avgPts.toFixed(2)} pts · best: ${r.topTeam ? name(r.topTeam) : '—'}`); });
+  L.push('');
+  L.push('▸ MOMENTUM');
+  if (hotStrk && hotVal > 0) L.push(`  Hottest streak: ${name(hotStrk)} on a ${hotVal}-win run`);
+  if (perfect.length > 0) L.push(`  Unbeaten: ${perfect.map(r => name(r)).join(', ')}`); else L.push('  No unbeaten teams — everyone has taken a loss');
+  if (bestWR) L.push(`  Best win rate (min 3 games): ${bestWR.name} at ${(bestWR.wr * 100).toFixed(1)}% (${bestWR.wins}W-${bestWR.losses}L)`);
+  L.push('');
+  L.push('▸ NOTABLE PATTERNS');
+  if (closest) { const pA = byPts.indexOf(closest.a) + 1, pB = byPts.indexOf(closest.b) + 1; L.push(`  Tightest race: #${pA} ${name(closest.a)} vs #${pB} ${name(closest.b)} — ${closest.diff.toFixed(2)} pts apart`); }
+  if (iTier >= 0 && Object.keys(tierCount).length) L.push(`  Tier distribution: ${Object.entries(tierCount).sort((a, b) => b[1] - a[1]).map(([k, v]) => k + ':' + v).join('  ')}`);
+  L.push('');
+  L.push('▸ TOP 5 STANDINGS');
+  byPts.slice(0, 5).forEach((r, i) => { const m = ['◆', '◇', '▲', '△', '○'][i]; L.push(`  ${m} #${i + 1}  ${name(r).padEnd(22)} ${get(r, iPts).toFixed(2)} pts   ${iVict >= 0 ? get(r, iVict) : '—'}W-${iLose >= 0 ? get(r, iLose) : '—'}L`); });
+
+  const full = L.join('\n'); let pos = 0;
+  function tick() {
+    if (pos >= full.length) return;
+    for (let b = 0; b < 6 && pos < full.length; b++) {
+      const ch = full[pos];
+      if (ch === '▸') { const end = full.indexOf('\n', pos); const le = end === -1 ? full.length : end; const span = document.createElement('span'); span.className = 'ai-header-line'; span.textContent = full.slice(pos, le); output.appendChild(span); pos = le; break; }
+      else { output.appendChild(document.createTextNode(ch)); pos++; }
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+/* ════════════════════════════════════════
+   CSV EXPORT
+════════════════════════════════════════ */
+function toCsv(c) {
+  const h = ['Position', 'Team', 'Points', 'Points Diff', 'Region', 'Tier', 'Position Delta', 'OldPos', 'NewPos'];
+  const lines = [h.join(',')];
+  for (const r of c) lines.push([r.newPos, `"${String(r.team).replaceAll('"', '""')}"`, Math.trunc(r.points), r.pointsDiffText, `"${String(r.region || '').replaceAll('"', '""')}"`, `"${String(r.tier || '').replaceAll('"', '""')}"`, r.deltaText, r.oldPos ?? '', r.newPos].join(','));
+  return lines.join('\n');
+}
+
+function downloadText(fn, content, mime = 'text/plain') {
+  const b = new Blob([content], { type: mime });
+  const u = URL.createObjectURL(b);
+  const a = document.createElement('a');
+  a.href = u; a.download = fn;
+  document.body.appendChild(a); a.click();
+  a.remove(); URL.revokeObjectURL(u);
+}
+
+/* ════════════════════════════════════════
+   EVENT LISTENERS
+════════════════════════════════════════ */
+$('#btnCompare').addEventListener('click', () => loadAll(true));
+
+$('#btnReloadOld').addEventListener('click', async () => {
+  try { setStatus('Reloading old.xlsx…', 'loading'); const d = await readExcel(OLD_URL + '?v=' + Date.now()); oldRowsCache = d.json; computeVRS(); renderDashboard(); setStatus('Old reloaded', 'ok'); }
+  catch (e) { setStatus('Error reloading old.xlsx', 'err'); }
+});
+
+$('#btnReloadNew').addEventListener('click', async () => {
+  try {
+    setStatus('Reloading ranking.xlsx…', 'loading');
+    const d = await readExcel(NEW_URL + '?v=' + Date.now());
+    newRowsCache = d.json;
+    hltvHeaders = (d.raw[0] || []).map(h => (h ?? '').toString().trim());
+    hltvRows = d.raw.slice(1).filter(r => r.some(c => c !== undefined && c !== ''));
+    computeVRS(); renderDashboard(); renderHltvCharts();
+    setStatus('New reloaded', 'ok');
+  } catch (e) { setStatus('Error reloading ranking.xlsx', 'err'); }
+});
+
+['filterText', 'filterRegion', 'filterTier'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('input', () => { if (lastCombined) renderGlobalTable(lastCombined); });
+    el.addEventListener('change', () => { if (lastCombined) renderGlobalTable(lastCombined); });
+  }
+});
+
+$('#btnClearFilters').addEventListener('click', () => {
+  $('#filterText').value = ''; $('#filterRegion').value = ''; $('#filterTier').value = '';
+  if (lastCombined) renderGlobalTable(lastCombined);
+});
+
+$('#btnDownloadCsv').addEventListener('click', () => { if (lastCombined) downloadText('nexus_ranking.csv', toCsv(lastCombined), 'text/csv;charset=utf-8'); });
+
+$('#regionRankingSelect').addEventListener('change', recomputeRegionRanking);
+
+['matchTeamA', 'matchTeamB', 'matchResult'].forEach(id => {
+  document.getElementById(id).addEventListener('change', renderMatchPredictor);
+});
+
+$('#btnRunVrsAnalysis').addEventListener('click', () => { runVrsAnalysis(); switchPanel('analysis-vrs'); });
+$('#btnRunHltvAnalysis').addEventListener('click', () => { runHltvAnalysis(); switchPanel('analysis-hltv'); });
+$('#dashMetric').addEventListener('change', renderDashboard);
+$('#chartRegionFilter').addEventListener('change', renderHltvCharts);
+$('#teamPieSelect').addEventListener('change', renderTeamPie);
+$('#legendsRegionFilter').addEventListener('change', renderLegendsTable);
+
+// Keyboard shortcut: 0 → menu
+document.addEventListener('keydown', e => {
+  if (e.key !== '0' && e.code !== 'Numpad0') return;
+  const el = document.activeElement, tag = (el?.tagName || '').toLowerCase();
+  if (['input', 'textarea', 'select'].includes(tag) || el?.isContentEditable) return;
+  window.location.href = 'index.html';
+});
+
+/* ════════════════════════════════════════
+   AUTO-LOAD
+════════════════════════════════════════ */
+(async () => {
+  try { await loadAll(false); }
+  catch (e) { console.error(e); setStatus('Auto-load failed. Ensure /file/*.xlsx exists.', 'err'); }
+})();

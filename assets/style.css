@@ -303,6 +303,10 @@ body::before {
   color: var(--text);
 }
 
+.sidebar > * {
+  flex-shrink: 0;
+}
+
 .side-pill-value.up { color: var(--good); }
 .side-pill-value.down { color: var(--bad); }
 

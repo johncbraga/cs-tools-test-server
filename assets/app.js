@@ -58,7 +58,8 @@ const PANEL_TITLES = {
   legends: 'Legends Hall',
   'analysis-vrs': 'VRS Analysis',
   'analysis-hltv': 'Data Insights',
-  'pro-analyses': 'Pro Analyses'
+  'pro-analyses': 'Pro Analyses',
+  'h2h': 'H2H Analysis'
 };
 
 function switchPanel(name) {
@@ -188,23 +189,23 @@ async function loadAll(force = false) {
   hltvHeaders = (newData.raw[0] || []).map(h => (h ?? '').toString().trim());
   hltvRows = newData.raw.slice(1).filter(r => r.some(c => c !== undefined && c !== ''));
 
-  setStatus('Processing…', 'loading');
-  computeVRS();
-  renderDashboard();
-  renderHltvCharts();
-
-  /* Load history.xlsx for Pro Analyses */
+  setStatus('Loading history.xlsx…', 'loading');
   try {
-    setStatus('Loading history.xlsx…', 'loading');
     const histData = await readExcel(HISTORY_URL + bust);
     historyData = parseHistoryData(histData.json);
-    initProAnalyses();
   } catch (e) {
     console.warn('history.xlsx not found or failed to load:', e);
     historyData = [];
   }
 
-  setStatus(`Loaded — ${hltvRows.length} teams · ${historyData.length} matches`, 'ok');
+  setStatus('Processing…', 'loading');
+  computeVRS();
+  renderDashboard();
+  renderHltvCharts();
+  initProAnalyses();
+
+  const histMsg = historyData.length ? ` · ${historyData.length} matches` : ' · history.xlsx not found';
+  setStatus(`Loaded — ${hltvRows.length} teams${histMsg}`, 'ok');
 
   enableFilters(true);
   enableRegion(true);
@@ -1080,6 +1081,7 @@ function setupAutocomplete(inputId, listId, getItems, onSelect) {
 }
 
 /* ─── Init Pro Analyses ─── */
+let paInitialized = false;
 function initProAnalyses() {
   if (!historyData.length) return;
 
@@ -1101,43 +1103,48 @@ function initProAnalyses() {
   const yearSel = document.getElementById('paFilterYear');
   yearSel.innerHTML = '<option value="">All Years</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
 
-  // Setup autocompletes
-  const allTeams = getAllTeamsFromHistory;
-  setupAutocomplete('paFilterTeam', 'paTeamSuggestions', allTeams, val => { paFilteredTeam = val; renderHistoryTable(); });
-  setupAutocomplete('paFilterOpponent', 'paOpponentSuggestions', allTeams, val => { paFilteredOpponent = val; renderHistoryTable(); });
-  setupAutocomplete('h2hTeamA', 'h2hTeamASugg', allTeams, null);
-  setupAutocomplete('h2hTeamB', 'h2hTeamBSugg', allTeams, null);
+  // Only bind event listeners once
+  if (!paInitialized) {
+    paInitialized = true;
 
-  // Filter listeners
-  ['paFilterMap', 'paFilterEvent', 'paFilterMonth', 'paFilterYear'].forEach(id => {
-    document.getElementById(id).addEventListener('change', renderHistoryTable);
-  });
-  document.getElementById('paFilterDate').addEventListener('change', renderHistoryTable);
-  document.getElementById('paFilterTeam').addEventListener('input', () => {
-    paFilteredTeam = document.getElementById('paFilterTeam').value.trim();
-    renderHistoryTable();
-  });
-  document.getElementById('paFilterOpponent').addEventListener('input', () => {
-    paFilteredOpponent = document.getElementById('paFilterOpponent').value.trim();
-    renderHistoryTable();
-  });
+    // Setup autocompletes
+    const allTeams = getAllTeamsFromHistory;
+    setupAutocomplete('paFilterTeam', 'paTeamSuggestions', allTeams, val => { paFilteredTeam = val; renderHistoryTable(); });
+    setupAutocomplete('paFilterOpponent', 'paOpponentSuggestions', allTeams, val => { paFilteredOpponent = val; renderHistoryTable(); });
+    setupAutocomplete('h2hTeamA', 'h2hTeamASugg', allTeams, null);
+    setupAutocomplete('h2hTeamB', 'h2hTeamBSugg', allTeams, null);
 
-  // Clear filters
-  document.getElementById('btnClearHistoryFilters').addEventListener('click', () => {
-    document.getElementById('paFilterTeam').value = '';
-    document.getElementById('paFilterOpponent').value = '';
-    document.getElementById('paFilterMap').value = '';
-    document.getElementById('paFilterEvent').value = '';
-    document.getElementById('paFilterDate').value = '';
-    document.getElementById('paFilterMonth').value = '';
-    document.getElementById('paFilterYear').value = '';
-    paFilteredTeam = '';
-    paFilteredOpponent = '';
-    renderHistoryTable();
-  });
+    // Filter listeners
+    ['paFilterMap', 'paFilterEvent', 'paFilterMonth', 'paFilterYear'].forEach(id => {
+      document.getElementById(id).addEventListener('change', renderHistoryTable);
+    });
+    document.getElementById('paFilterDate').addEventListener('change', renderHistoryTable);
+    document.getElementById('paFilterTeam').addEventListener('input', () => {
+      paFilteredTeam = document.getElementById('paFilterTeam').value.trim();
+      renderHistoryTable();
+    });
+    document.getElementById('paFilterOpponent').addEventListener('input', () => {
+      paFilteredOpponent = document.getElementById('paFilterOpponent').value.trim();
+      renderHistoryTable();
+    });
 
-  // H2H button
-  document.getElementById('btnH2hAnalyze').addEventListener('click', runH2hAnalysis);
+    // Clear filters
+    document.getElementById('btnClearHistoryFilters').addEventListener('click', () => {
+      document.getElementById('paFilterTeam').value = '';
+      document.getElementById('paFilterOpponent').value = '';
+      document.getElementById('paFilterMap').value = '';
+      document.getElementById('paFilterEvent').value = '';
+      document.getElementById('paFilterDate').value = '';
+      document.getElementById('paFilterMonth').value = '';
+      document.getElementById('paFilterYear').value = '';
+      paFilteredTeam = '';
+      paFilteredOpponent = '';
+      renderHistoryTable();
+    });
+
+    // H2H button
+    document.getElementById('btnH2hAnalyze').addEventListener('click', runH2hAnalysis);
+  }
 
   renderHistoryTable();
 }
@@ -1153,12 +1160,12 @@ function getFilteredHistory() {
   const year = document.getElementById('paFilterYear').value;
 
   return historyData.filter(m => {
-    if (team && !(m.team1.toLowerCase().includes(team) || m.team2.toLowerCase().includes(team))) return false;
+    if (team && !(m.team1.toLowerCase() === team || m.team2.toLowerCase() === team)) return false;
     if (opp) {
       if (!team) return false; // opponent filter only works with a team
       const t1L = m.team1.toLowerCase(), t2L = m.team2.toLowerCase();
-      const teamMatch = t1L.includes(team) || t2L.includes(team);
-      const oppMatch = t1L.includes(opp) || t2L.includes(opp);
+      const teamMatch = t1L === team || t2L === team;
+      const oppMatch = t1L === opp || t2L === opp;
       if (!teamMatch || !oppMatch) return false;
     }
     if (map && m.map !== map) return false;
@@ -1175,6 +1182,10 @@ function renderHistoryTable() {
   const filtered = getFilteredHistory();
   document.getElementById('paMatchCount').textContent = filtered.length + ' match' + (filtered.length !== 1 ? 'es' : '');
 
+  // Update tab badge
+  const badge = document.getElementById('paTabHistoryBadge');
+  if (badge) badge.textContent = historyData.length ? historyData.length : '';
+
   if (!filtered.length) {
     body.innerHTML = '<tr><td colspan="7" class="empty-state">No matches found for current filters.</td></tr>';
     return;
@@ -1189,8 +1200,8 @@ function renderHistoryTable() {
     // Determine outcome for the filtered team
     let outcomeHtml = '';
     if (teamFilter) {
-      const isTeam1 = m.team1.toLowerCase().includes(teamFilter);
-      const isTeam2 = m.team2.toLowerCase().includes(teamFilter);
+      const isTeam1 = m.team1.toLowerCase() === teamFilter;
+      const isTeam2 = m.team2.toLowerCase() === teamFilter;
       const selectedTeam = isTeam1 ? m.team1 : isTeam2 ? m.team2 : '';
       if (selectedTeam) {
         const won = m.winner === selectedTeam;
@@ -1204,15 +1215,15 @@ function renderHistoryTable() {
     let t1Html = escHtml(m.team1);
     let t2Html = escHtml(m.team2);
     if (teamFilter) {
-      if (m.team1.toLowerCase().includes(teamFilter)) t1Html = `<strong class="pa-team-highlight">${escHtml(m.team1)}</strong>`;
-      if (m.team2.toLowerCase().includes(teamFilter)) t2Html = `<strong class="pa-team-highlight">${escHtml(m.team2)}</strong>`;
+      if (m.team1.toLowerCase() === teamFilter) t1Html = `<strong class="pa-team-highlight">${escHtml(m.team1)}</strong>`;
+      if (m.team2.toLowerCase() === teamFilter) t2Html = `<strong class="pa-team-highlight">${escHtml(m.team2)}</strong>`;
     }
 
     // Color the result based on winner
     let resultCls = '';
     if (teamFilter) {
-      const isTeam1 = m.team1.toLowerCase().includes(teamFilter);
-      const isTeam2 = m.team2.toLowerCase().includes(teamFilter);
+      const isTeam1 = m.team1.toLowerCase() === teamFilter;
+      const isTeam2 = m.team2.toLowerCase() === teamFilter;
       if (isTeam1 && m.score1 > m.score2) resultCls = 'pa-result-win';
       else if (isTeam1 && m.score1 < m.score2) resultCls = 'pa-result-loss';
       else if (isTeam2 && m.score2 > m.score1) resultCls = 'pa-result-win';
@@ -1342,6 +1353,27 @@ function runH2hAnalysis() {
   // Factor: Total games experience
   if (statsA.total > statsB.total * 1.2) totalFactors.a += 0.5;
   if (statsB.total > statsA.total * 1.2) totalFactors.b += 0.5;
+
+  // === Win Probability ===
+  // Base: use win rates normalized, then apply H2H bonus
+  let baseA = parseFloat(statsA.wr) || 50;
+  let baseB = parseFloat(statsB.wr) || 50;
+  // Normalize to probabilities
+  let probA = baseA / (baseA + baseB) * 100;
+  let probB = 100 - probA;
+  // H2H bonus: shift ~3% per H2H win difference (capped)
+  if (h2hMatches.length > 0) {
+    const h2hDiff = h2hWinsA - h2hWinsB;
+    const h2hShift = Math.max(-12, Math.min(12, h2hDiff * 3));
+    probA += h2hShift;
+    probB -= h2hShift;
+  }
+  // Form bonus: +2% for active win streak ≥ 2
+  if (statsA.streakType === 'W' && statsA.streak >= 2) { probA += 2; probB -= 2; }
+  if (statsB.streakType === 'W' && statsB.streak >= 2) { probB += 2; probA -= 2; }
+  // Clamp
+  probA = Math.max(5, Math.min(95, probA));
+  probB = Math.max(5, Math.min(95, 100 - probA));
 
   if (totalFactors.a > totalFactors.b) {
     verdictText = `${nameA} has the edge based on H2H record, form, and win rate analysis.`;
@@ -1520,10 +1552,23 @@ function runH2hAnalysis() {
   }
 
   // Verdict
+  const probAColor = probA >= probB ? 'var(--accent)' : 'var(--muted2)';
+  const probBColor = probB > probA ? 'var(--accent2, #ff6b9d)' : 'var(--muted2)';
   html += `<div class="h2h-verdict">
     <div class="h2h-verdict-icon">🎯</div>
     <div class="h2h-verdict-title" style="color:${verdictColor}">Verdict</div>
     <div class="h2h-verdict-text">${escHtml(verdictText)}</div>
+    <div class="h2h-win-prob" style="margin:12px 0 8px">
+      <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:12px;margin-bottom:4px">
+        <span style="color:${probAColor};font-weight:700">${escHtml(nameA)} ${probA.toFixed(1)}%</span>
+        <span style="color:var(--muted2);font-size:10px">WIN PROBABILITY</span>
+        <span style="color:${probBColor};font-weight:700">${probB.toFixed(1)}% ${escHtml(nameB)}</span>
+      </div>
+      <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.05)">
+        <div style="width:${probA.toFixed(1)}%;background:var(--accent);transition:width 0.5s"></div>
+        <div style="width:${probB.toFixed(1)}%;background:var(--accent2, #ff6b9d);transition:width 0.5s"></div>
+      </div>
+    </div>
     <div class="h2h-verdict-factors">
       <span>H2H: ${h2hWinsA}-${h2hWinsB}</span>
       <span>WR: ${statsA.wr}% vs ${statsB.wr}%</span>

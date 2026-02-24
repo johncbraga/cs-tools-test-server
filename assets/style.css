@@ -1099,38 +1099,192 @@ canvas { width: 100% !important; }
 ═══════════════════════════════════════ */
 .pa-tabs {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   margin-bottom: 16px;
-  background: var(--surface);
+  background: linear-gradient(135deg, rgba(13,20,33,0.95) 0%, rgba(7,11,18,0.98) 100%);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 4px;
+  border-radius: 14px;
+  padding: 5px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle scan-line effect on the tabs container */
+.pa-tabs::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 3px,
+    rgba(79,140,255,0.015) 3px,
+    rgba(79,140,255,0.015) 4px
+  );
+  pointer-events: none;
+  border-radius: 14px;
 }
 
 .pa-tab {
   flex: 1;
-  padding: 10px 16px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 13px 20px;
   border: 1px solid transparent;
   border-radius: 10px;
   background: transparent;
   color: var(--muted);
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 13px;
+  letter-spacing: 0.5px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+  overflow: hidden;
+  z-index: 1;
+}
+
+.pa-tab::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
 }
 
 .pa-tab:hover {
   color: var(--text);
   background: rgba(79,140,255,0.06);
+  border-color: rgba(79,140,255,0.12);
+}
+
+.pa-tab:hover::before {
+  opacity: 1;
+  background: radial-gradient(ellipse 80% 60% at 50% 120%, rgba(79,140,255,0.08) 0%, transparent 70%);
 }
 
 .pa-tab.active {
+  color: #fff;
+  background: linear-gradient(135deg, rgba(79,140,255,0.14) 0%, rgba(123,95,255,0.1) 100%);
+  border-color: rgba(79,140,255,0.35);
+  box-shadow:
+    0 0 16px rgba(79,140,255,0.12),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.pa-tab.active::before {
+  opacity: 1;
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 0%, rgba(79,140,255,0.15) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 50% 110%, rgba(123,95,255,0.1) 0%, transparent 70%);
+}
+
+/* Bottom accent line for active tab */
+.pa-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 15%;
+  right: 15%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(79,140,255,0.5);
+}
+
+.pa-tab:active {
+  transform: scale(0.98);
+}
+
+/* Tab icon */
+.pa-tab-icon {
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(79,140,255,0.08);
+  border: 1px solid rgba(79,140,255,0.12);
+  transition: all 0.25s ease;
+  flex-shrink: 0;
+}
+
+.pa-tab:hover .pa-tab-icon {
+  background: rgba(79,140,255,0.12);
+  border-color: rgba(79,140,255,0.2);
+}
+
+.pa-tab.active .pa-tab-icon {
+  background: rgba(79,140,255,0.2);
+  border-color: rgba(79,140,255,0.35);
+  box-shadow: 0 0 10px rgba(79,140,255,0.15);
+}
+
+/* Tab label */
+.pa-tab-label {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  transition: color 0.2s;
+}
+
+.pa-tab.active .pa-tab-label {
+  background: linear-gradient(135deg, #fff 0%, rgba(79,140,255,0.9) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Tab badge (match count) */
+.pa-tab-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(79,140,255,0.12);
+  border: 1px solid rgba(79,140,255,0.2);
   color: var(--accent);
-  background: rgba(79,140,255,0.1);
-  border-color: rgba(79,140,255,0.25);
-  box-shadow: 0 0 12px rgba(79,140,255,0.08);
+  letter-spacing: 0.3px;
+  transition: all 0.2s ease;
+  min-width: 18px;
+  text-align: center;
+}
+
+.pa-tab-badge:empty {
+  display: none;
+}
+
+.pa-tab.active .pa-tab-badge {
+  background: rgba(79,140,255,0.2);
+  border-color: rgba(79,140,255,0.4);
+  box-shadow: 0 0 8px rgba(79,140,255,0.15);
+}
+
+/* Glow decoration element */
+.pa-tab-glow {
+  display: none;
+}
+
+.pa-tab.active .pa-tab-glow {
+  display: block;
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 20px;
+  background: radial-gradient(ellipse, rgba(79,140,255,0.3) 0%, transparent 70%);
+  pointer-events: none;
+  filter: blur(6px);
 }
 
 .pa-tab-content {
@@ -1651,4 +1805,7 @@ canvas { width: 100% !important; }
   .h2h-header { grid-template-columns: 1fr; text-align: center; }
   .h2h-form-grid, .h2h-map-prof-grid, .h2h-recent-grid { grid-template-columns: 1fr; }
   .h2h-verdict-factors { flex-direction: column; align-items: center; }
+  .pa-tab { padding: 11px 12px; gap: 8px; }
+  .pa-tab-icon { width: 24px; height: 24px; font-size: 13px; }
+  .pa-tab-label { font-size: 12px; }
 }

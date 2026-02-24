@@ -48,6 +48,9 @@
       <a class="nav-item" data-panel="legends" onclick="switchPanel('legends');return false" href="#">
         <span class="nav-icon">👑</span><span class="nav-label">Legends Hall</span>
       </a>
+      <a class="nav-item" data-panel="pro-analyses" onclick="switchPanel('pro-analyses');return false" href="#">
+        <span class="nav-icon">🎯</span><span class="nav-label">Pro Analyses</span>
+      </a>
 
       <div class="sidebar-divider"></div>
       <div class="sidebar-section">Intelligence</div>
@@ -415,6 +418,124 @@
         </div>
       </div>
 
+      <!-- ═══════════════════════════════════════
+           PRO ANALYSES
+      ═══════════════════════════════════════ -->
+      <div class="panel" id="panel-pro-analyses">
+
+        <!-- TAB SWITCHER -->
+        <div class="pa-tabs">
+          <button class="pa-tab active" data-pa-tab="history" onclick="switchPaTab('history')">📜 Match History</button>
+          <button class="pa-tab" data-pa-tab="h2h" onclick="switchPaTab('h2h')">🤖 H2H Analysis</button>
+        </div>
+
+        <!-- ═══ MATCH HISTORY TAB ═══ -->
+        <div class="pa-tab-content active" id="pa-tab-history">
+          <div class="card">
+            <div class="card-header">
+              <div><div class="card-title">Match History</div><div class="card-subtitle">Filter and browse all recorded matches</div></div>
+              <div style="display:flex;gap:8px;align-items:flex-end">
+                <button class="btn btn-ghost" id="btnClearHistoryFilters">✕ Clear Filters</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <!-- FILTER ROW 1 -->
+              <div class="pa-filters-grid">
+                <div class="form-group pa-filter-group">
+                  <label class="form-label">Team</label>
+                  <div class="pa-autocomplete-wrap">
+                    <input class="form-control" id="paFilterTeam" type="text" placeholder="Search team…" autocomplete="off">
+                    <div class="pa-autocomplete-list" id="paTeamSuggestions"></div>
+                  </div>
+                </div>
+                <div class="form-group pa-filter-group">
+                  <label class="form-label">Opponent (H2H)</label>
+                  <div class="pa-autocomplete-wrap">
+                    <input class="form-control" id="paFilterOpponent" type="text" placeholder="Search opponent…" autocomplete="off">
+                    <div class="pa-autocomplete-list" id="paOpponentSuggestions"></div>
+                  </div>
+                </div>
+                <div class="form-group pa-filter-group">
+                  <label class="form-label">Map</label>
+                  <select class="form-control" id="paFilterMap"><option value="">All Maps</option></select>
+                </div>
+                <div class="form-group pa-filter-group">
+                  <label class="form-label">Event</label>
+                  <select class="form-control" id="paFilterEvent"><option value="">All Events</option></select>
+                </div>
+              </div>
+              <!-- FILTER ROW 2 -->
+              <div class="pa-filters-grid" style="margin-top:8px">
+                <div class="form-group pa-filter-group">
+                  <label class="form-label">Date</label>
+                  <input class="form-control" id="paFilterDate" type="date">
+                </div>
+                <div class="form-group pa-filter-group">
+                  <label class="form-label">Month</label>
+                  <select class="form-control" id="paFilterMonth"><option value="">All Months</option></select>
+                </div>
+                <div class="form-group pa-filter-group">
+                  <label class="form-label">Year</label>
+                  <select class="form-control" id="paFilterYear"><option value="">All Years</option></select>
+                </div>
+                <div class="form-group pa-filter-group" style="display:flex; align-items:flex-end;">
+                  <div class="pa-match-count" id="paMatchCount">0 matches</div>
+                </div>
+              </div>
+
+              <!-- HISTORY TABLE -->
+              <div class="table-wrapper" style="max-height:55vh; margin-top:14px">
+                <table id="paHistoryTable">
+                  <thead><tr>
+                    <th>Date</th><th>Team 1</th><th class="center">Result</th><th>Team 2</th>
+                    <th>Map</th><th>Event</th><th class="center">Outcome</th>
+                  </tr></thead>
+                  <tbody id="paHistoryBody">
+                    <tr><td colspan="7" class="empty-state">Load history.xlsx to see matches.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ H2H ANALYSIS TAB ═══ -->
+        <div class="pa-tab-content" id="pa-tab-h2h">
+          <div class="card">
+            <div class="card-header">
+              <div><div class="card-title">Head-to-Head Analysis</div><div class="card-subtitle">Select two teams for detailed comparison</div></div>
+            </div>
+            <div class="card-body">
+              <div class="controls-row" style="margin-bottom:16px">
+                <div class="form-group">
+                  <label class="form-label">Team A</label>
+                  <div class="pa-autocomplete-wrap">
+                    <input class="form-control" id="h2hTeamA" type="text" placeholder="Search team…" autocomplete="off">
+                    <div class="pa-autocomplete-list" id="h2hTeamASugg"></div>
+                  </div>
+                </div>
+                <div style="display:flex; align-items:flex-end; padding-bottom:1px">
+                  <span style="font-family:var(--font-display); font-weight:800; color:var(--muted2); font-size:18px">VS</span>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Team B</label>
+                  <div class="pa-autocomplete-wrap">
+                    <input class="form-control" id="h2hTeamB" type="text" placeholder="Search team…" autocomplete="off">
+                    <div class="pa-autocomplete-list" id="h2hTeamBSugg"></div>
+                  </div>
+                </div>
+                <div style="display:flex; align-items:flex-end;">
+                  <button class="btn btn-primary" id="btnH2hAnalyze">🎯 Analyze</button>
+                </div>
+              </div>
+              <div id="h2hOutput">
+                <div class="empty-state">Select two teams and click <strong>Analyze</strong> to see head-to-head insights.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </div><!-- /panels -->
   </main>
 </div>

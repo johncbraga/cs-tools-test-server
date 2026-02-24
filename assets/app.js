@@ -62,6 +62,7 @@ const PANEL_TITLES = {
   'analysis-vrs': 'VRS Analysis',
   'analysis-hltv': 'Data Insights',
   'pro-analyses': 'Pro Analyses',
+  'seeding': 'Seeding',
   'h2h': 'H2H Analysis'
 };
 
@@ -1754,6 +1755,156 @@ document.addEventListener('keydown', e => {
   const el = document.activeElement, tag = (el?.tagName || '').toLowerCase();
   if (['input', 'textarea', 'select'].includes(tag) || el?.isContentEditable) return;
   window.location.href = 'index.html';
+});
+
+/* ════════════════════════════════════════
+   SEEDING GENERATOR
+════════════════════════════════════════ */
+function generateSeeding() {
+  const textarea = $('#seedTeamInput');
+  const output = $('#seedOutput');
+  const info = $('#seedInfo');
+
+  // Parse input names (one per line, trim, remove empty)
+  const inputNames = textarea.value.split('\n').map(s => s.trim()).filter(Boolean);
+  if (inputNames.length < 2) {
+    info.innerHTML = '<span style="color:var(--bad)">⚠ Enter at least 2 team names.</span>';
+    return;
+  }
+
+  // Remove duplicates (case-insensitive)
+  const seen = new Set();
+  const uniqueNames = [];
+  for (const n of inputNames) {
+    const key = n.toLowerCase();
+    if (!seen.has(key)) { seen.add(key); uniqueNames.push(n); }
+  }
+
+  // Build lookup from ranking data (currentNewTeams)
+  const rankMap = new Map();
+  if (currentNewTeams && currentNewTeams.length) {
+    currentNewTeams.forEach(t => {
+      rankMap.set(t.team.toLowerCase(), t);
+    });
+  }
+
+  // Match teams and assign points — unmatched teams get 0 points
+  const matched = [];
+  const notFound = [];
+  for (const name of uniqueNames) {
+    const key = name.toLowerCase();
+    const data = rankMap.get(key);
+    if (data) {
+      matched.push({ name: data.team, points: data.points, pos: data.pos, region: data.region, tier: data.tier });
+    } else {
+      notFound.push(name);
+      matched.push({ name, points: 0, pos: 999, region: '—', tier: '—' });
+    }
+  }
+
+  // Sort by points descending (strongest first)
+  matched.sort((a, b) => b.points - a.points);
+
+  // Info summary
+  const total = matched.length;
+  const hasOdd = total % 2 !== 0;
+  let infoHtml = `<span style="color:var(--accent)">${total} team${total > 1 ? 's' : ''} selected</span>`;
+  if (notFound.length) {
+    infoHtml += ` · <span style="color:var(--warn)">${notFound.length} not found in ranking (0 pts)</span>`;
+  }
+  if (hasOdd) {
+    infoHtml += ` · <span style="color:var(--warn)">Odd count → 1 BYE</span>`;
+  }
+  info.innerHTML = infoHtml;
+
+  // Generate matchups: pair extremes (1st vs last, 2nd vs 2nd-last, etc.)
+  const matches = [];
+  const half = Math.floor(total / 2);
+  for (let i = 0; i < half; i++) {
+    const strong = matched[i];
+    const weak = matched[total - 1 - i];
+    matches.push({ teamA: strong, teamB: weak });
+  }
+
+  // Handle BYE for odd team count — the middle team gets a bye
+  let byeTeam = null;
+  if (hasOdd) {
+    byeTeam = matched[half];
+  }
+
+  // Shuffle match order
+  for (let i = matches.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [matches[i], matches[j]] = [matches[j], matches[i]];
+  }
+
+  // Randomize sides within each match & pick one to highlight (wine color)
+  matches.forEach(m => {
+    // Swap sides randomly
+    if (Math.random() < 0.5) {
+      const tmp = m.teamA;
+      m.teamA = m.teamB;
+      m.teamB = tmp;
+    }
+    // Wine highlight: randomly pick left (A) or right (B)
+    m.wineHighlight = Math.random() < 0.5 ? 'A' : 'B';
+  });
+
+  // Render output
+  let html = '<div class="seed-bracket">';
+
+  // Seeded order header
+  html += '<div class="seed-order-header">';
+  html += '<span class="seed-order-title">🏆 Seed Order (by Points)</span>';
+  html += '<div class="seed-order-list">';
+  matched.forEach((t, i) => {
+    html += `<span class="seed-order-chip">${i + 1}. ${escHtml(t.name)} <span class="seed-order-pts">${t.points.toLocaleString()} pts</span></span>`;
+  });
+  html += '</div></div>';
+
+  // Matches
+  html += '<div class="seed-matches-title">⚔️ Matchups <span style="color:var(--muted2); font-weight:400">(randomized order & sides)</span></div>';
+  html += '<div class="seed-matches-grid">';
+  matches.forEach((m, idx) => {
+    const aWine = m.wineHighlight === 'A' ? ' seed-wine' : '';
+    const bWine = m.wineHighlight === 'B' ? ' seed-wine' : '';
+    html += `<div class="seed-match-card">`;
+    html += `<div class="seed-match-num">Match ${idx + 1}</div>`;
+    html += `<div class="seed-match-body">`;
+    html += `<div class="seed-match-team${aWine}">`;
+    html += `<span class="seed-team-name">${escHtml(m.teamA.name)}</span>`;
+    html += `<span class="seed-team-pts">${m.teamA.points.toLocaleString()} pts</span>`;
+    html += `</div>`;
+    html += `<div class="seed-vs">VS</div>`;
+    html += `<div class="seed-match-team${bWine}">`;
+    html += `<span class="seed-team-name">${escHtml(m.teamB.name)}</span>`;
+    html += `<span class="seed-team-pts">${m.teamB.points.toLocaleString()} pts</span>`;
+    html += `</div>`;
+    html += `</div></div>`;
+  });
+
+  // BYE card
+  if (byeTeam) {
+    html += `<div class="seed-match-card seed-bye-card">`;
+    html += `<div class="seed-match-num">BYE</div>`;
+    html += `<div class="seed-match-body seed-bye-body">`;
+    html += `<div class="seed-match-team seed-bye-team">`;
+    html += `<span class="seed-team-name">${escHtml(byeTeam.name)}</span>`;
+    html += `<span class="seed-team-pts">${byeTeam.points.toLocaleString()} pts</span>`;
+    html += `</div>`;
+    html += `<div class="seed-bye-label">⟶ Advances directly</div>`;
+    html += `</div></div>`;
+  }
+
+  html += '</div></div>';
+  output.innerHTML = html;
+}
+
+$('#btnSeedGenerate').addEventListener('click', generateSeeding);
+$('#btnSeedClear').addEventListener('click', () => {
+  $('#seedTeamInput').value = '';
+  $('#seedInfo').innerHTML = '';
+  $('#seedOutput').innerHTML = '<div class="empty-state">Enter team names and click <strong>Generate Seeding</strong> to create matchups.</div>';
 });
 
 /* ════════════════════════════════════════

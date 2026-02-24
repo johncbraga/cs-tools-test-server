@@ -13,6 +13,7 @@ const REGION_LABELS = { "AM": "Americas", "EU": "Europe", "AS/SIS/ESEA": "Asia" 
 const REGION_CLASS = { "AM": "region-am", "EU": "region-eu", "AS/SIS/ESEA": "region-as" };
 const OLD_URL = "file/old.xlsx";
 const NEW_URL = "file/ranking.xlsx";
+const HISTORY_URL = "file/history.xlsx";
 
 /* ════════════════════════════════════════
    GLOBAL STATE
@@ -24,6 +25,11 @@ let hltvRows = [];
 let currentNewTeams = null;
 let lastCombined = null;
 const charts = {};
+
+/* Pro Analyses state */
+let historyData = [];
+let paFilteredTeam = '';
+let paFilteredOpponent = '';
 
 /* ════════════════════════════════════════
    SIDEBAR TOGGLE
@@ -51,7 +57,8 @@ const PANEL_TITLES = {
   predictor: 'Match Predictor',
   legends: 'Legends Hall',
   'analysis-vrs': 'VRS Analysis',
-  'analysis-hltv': 'Data Insights'
+  'analysis-hltv': 'Data Insights',
+  'pro-analyses': 'Pro Analyses'
 };
 
 function switchPanel(name) {
@@ -185,7 +192,19 @@ async function loadAll(force = false) {
   computeVRS();
   renderDashboard();
   renderHltvCharts();
-  setStatus(`Loaded — ${hltvRows.length} teams`, 'ok');
+
+  /* Load history.xlsx for Pro Analyses */
+  try {
+    setStatus('Loading history.xlsx…', 'loading');
+    const histData = await readExcel(HISTORY_URL + bust);
+    historyData = parseHistoryData(histData.json);
+    initProAnalyses();
+  } catch (e) {
+    console.warn('history.xlsx not found or failed to load:', e);
+    historyData = [];
+  }
+
+  setStatus(`Loaded — ${hltvRows.length} teams · ${historyData.length} matches`, 'ok');
 
   enableFilters(true);
   enableRegion(true);
@@ -931,6 +950,610 @@ function runHltvAnalysis() {
     requestAnimationFrame(tick);
   }
   tick();
+}
+
+/* ════════════════════════════════════════
+   PRO ANALYSES — Match History & H2H
+════════════════════════════════════════ */
+
+const MONTH_NAMES = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function parseHistoryData(rows) {
+  const data = [];
+  for (const r of rows) {
+    const team1 = String(r['Team 1'] ?? r['team 1'] ?? r['team1'] ?? '').trim();
+    const team2 = String(r['Team 2'] ?? r['team 2'] ?? r['team2'] ?? '').trim();
+    const map = String(r['Map'] ?? r['map'] ?? '').trim();
+    const result = String(r['Result'] ?? r['result'] ?? '').trim();
+    const event = String(r['Event'] ?? r['event'] ?? '').trim();
+    let dateRaw = r['Date'] ?? r['date'] ?? '';
+    if (!team1 || !team2 || !result) continue;
+
+    // Parse date
+    let dateObj = null, dateStr = '';
+    if (dateRaw) {
+      if (typeof dateRaw === 'number') {
+        // Excel serial date
+        dateObj = new Date((dateRaw - 25569) * 86400000);
+      } else {
+        dateObj = new Date(dateRaw);
+      }
+      if (dateObj && !isNaN(dateObj.getTime())) {
+        dateStr = dateObj.toISOString().split('T')[0];
+      } else {
+        dateStr = String(dateRaw).trim();
+        dateObj = null;
+      }
+    }
+
+    // Parse result (e.g., "13x4", "14x16", "16x9")
+    const resParts = result.toLowerCase().split('x').map(s => parseInt(s.trim()));
+    let score1 = resParts[0] || 0, score2 = resParts[1] || 0;
+    let winner = score1 > score2 ? team1 : score2 > score1 ? team2 : 'Draw';
+
+    data.push({
+      team1, team2, map, result, event, dateStr, dateObj,
+      score1, score2, winner,
+      month: dateObj ? dateObj.getMonth() + 1 : 0,
+      year: dateObj ? dateObj.getFullYear() : 0
+    });
+  }
+  // Sort newest first
+  data.sort((a, b) => {
+    if (a.dateObj && b.dateObj) return b.dateObj - a.dateObj;
+    return b.dateStr.localeCompare(a.dateStr);
+  });
+  return data;
+}
+
+function getAllTeamsFromHistory() {
+  const set = new Set();
+  historyData.forEach(m => { set.add(m.team1); set.add(m.team2); });
+  return Array.from(set).sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
+}
+
+function getAllMapsFromHistory() {
+  const set = new Set();
+  historyData.forEach(m => { if (m.map) set.add(m.map); });
+  return Array.from(set).sort();
+}
+
+function getAllEventsFromHistory() {
+  const set = new Set();
+  historyData.forEach(m => { if (m.event) set.add(m.event); });
+  return Array.from(set).sort();
+}
+
+function getAllMonthsFromHistory() {
+  const set = new Set();
+  historyData.forEach(m => { if (m.month) set.add(m.month); });
+  return Array.from(set).sort((a, b) => a - b);
+}
+
+function getAllYearsFromHistory() {
+  const set = new Set();
+  historyData.forEach(m => { if (m.year) set.add(m.year); });
+  return Array.from(set).sort((a, b) => b - a);
+}
+
+/* ─── Tab switching ─── */
+function switchPaTab(tab) {
+  document.querySelectorAll('.pa-tab').forEach(t => t.classList.toggle('active', t.dataset.paTab === tab));
+  document.querySelectorAll('.pa-tab-content').forEach(c => c.classList.toggle('active', c.id === 'pa-tab-' + tab));
+}
+
+/* ─── Autocomplete helper ─── */
+function setupAutocomplete(inputId, listId, getItems, onSelect) {
+  const input = document.getElementById(inputId);
+  const list = document.getElementById(listId);
+  if (!input || !list) return;
+
+  input.addEventListener('input', () => {
+    const val = input.value.trim().toLowerCase();
+    if (!val) { list.innerHTML = ''; list.style.display = 'none'; return; }
+    const items = getItems().filter(t => t.toLowerCase().includes(val));
+    if (!items.length) { list.innerHTML = ''; list.style.display = 'none'; return; }
+    list.innerHTML = items.slice(0, 15).map(t => {
+      const idx = t.toLowerCase().indexOf(val);
+      const hl = idx >= 0 ? escHtml(t.slice(0, idx)) + '<mark>' + escHtml(t.slice(idx, idx + val.length)) + '</mark>' + escHtml(t.slice(idx + val.length)) : escHtml(t);
+      return `<div class="pa-autocomplete-item" data-value="${escHtml(t)}">${hl}</div>`;
+    }).join('');
+    list.style.display = 'block';
+  });
+
+  list.addEventListener('click', e => {
+    const item = e.target.closest('.pa-autocomplete-item');
+    if (!item) return;
+    input.value = item.dataset.value;
+    list.innerHTML = ''; list.style.display = 'none';
+    if (onSelect) onSelect(item.dataset.value);
+  });
+
+  input.addEventListener('blur', () => { setTimeout(() => { list.style.display = 'none'; }, 200); });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const first = list.querySelector('.pa-autocomplete-item');
+      if (first) { input.value = first.dataset.value; list.innerHTML = ''; list.style.display = 'none'; if (onSelect) onSelect(first.dataset.value); }
+      e.preventDefault();
+    }
+  });
+}
+
+/* ─── Init Pro Analyses ─── */
+function initProAnalyses() {
+  if (!historyData.length) return;
+
+  // Populate filter dropdowns
+  const maps = getAllMapsFromHistory();
+  const events = getAllEventsFromHistory();
+  const months = getAllMonthsFromHistory();
+  const years = getAllYearsFromHistory();
+
+  const mapSel = document.getElementById('paFilterMap');
+  mapSel.innerHTML = '<option value="">All Maps</option>' + maps.map(m => `<option value="${escHtml(m)}">${escHtml(m)}</option>`).join('');
+
+  const eventSel = document.getElementById('paFilterEvent');
+  eventSel.innerHTML = '<option value="">All Events</option>' + events.map(e => `<option value="${escHtml(e)}">${escHtml(e)}</option>`).join('');
+
+  const monthSel = document.getElementById('paFilterMonth');
+  monthSel.innerHTML = '<option value="">All Months</option>' + months.map(m => `<option value="${m}">${MONTH_NAMES[m]}</option>`).join('');
+
+  const yearSel = document.getElementById('paFilterYear');
+  yearSel.innerHTML = '<option value="">All Years</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
+
+  // Setup autocompletes
+  const allTeams = getAllTeamsFromHistory;
+  setupAutocomplete('paFilterTeam', 'paTeamSuggestions', allTeams, val => { paFilteredTeam = val; renderHistoryTable(); });
+  setupAutocomplete('paFilterOpponent', 'paOpponentSuggestions', allTeams, val => { paFilteredOpponent = val; renderHistoryTable(); });
+  setupAutocomplete('h2hTeamA', 'h2hTeamASugg', allTeams, null);
+  setupAutocomplete('h2hTeamB', 'h2hTeamBSugg', allTeams, null);
+
+  // Filter listeners
+  ['paFilterMap', 'paFilterEvent', 'paFilterMonth', 'paFilterYear'].forEach(id => {
+    document.getElementById(id).addEventListener('change', renderHistoryTable);
+  });
+  document.getElementById('paFilterDate').addEventListener('change', renderHistoryTable);
+  document.getElementById('paFilterTeam').addEventListener('input', () => {
+    paFilteredTeam = document.getElementById('paFilterTeam').value.trim();
+    renderHistoryTable();
+  });
+  document.getElementById('paFilterOpponent').addEventListener('input', () => {
+    paFilteredOpponent = document.getElementById('paFilterOpponent').value.trim();
+    renderHistoryTable();
+  });
+
+  // Clear filters
+  document.getElementById('btnClearHistoryFilters').addEventListener('click', () => {
+    document.getElementById('paFilterTeam').value = '';
+    document.getElementById('paFilterOpponent').value = '';
+    document.getElementById('paFilterMap').value = '';
+    document.getElementById('paFilterEvent').value = '';
+    document.getElementById('paFilterDate').value = '';
+    document.getElementById('paFilterMonth').value = '';
+    document.getElementById('paFilterYear').value = '';
+    paFilteredTeam = '';
+    paFilteredOpponent = '';
+    renderHistoryTable();
+  });
+
+  // H2H button
+  document.getElementById('btnH2hAnalyze').addEventListener('click', runH2hAnalysis);
+
+  renderHistoryTable();
+}
+
+/* ─── Filter & render history ─── */
+function getFilteredHistory() {
+  const team = paFilteredTeam.toLowerCase();
+  const opp = paFilteredOpponent.toLowerCase();
+  const map = document.getElementById('paFilterMap').value;
+  const event = document.getElementById('paFilterEvent').value;
+  const date = document.getElementById('paFilterDate').value;
+  const month = document.getElementById('paFilterMonth').value;
+  const year = document.getElementById('paFilterYear').value;
+
+  return historyData.filter(m => {
+    if (team && !(m.team1.toLowerCase().includes(team) || m.team2.toLowerCase().includes(team))) return false;
+    if (opp) {
+      if (!team) return false; // opponent filter only works with a team
+      const t1L = m.team1.toLowerCase(), t2L = m.team2.toLowerCase();
+      const teamMatch = t1L.includes(team) || t2L.includes(team);
+      const oppMatch = t1L.includes(opp) || t2L.includes(opp);
+      if (!teamMatch || !oppMatch) return false;
+    }
+    if (map && m.map !== map) return false;
+    if (event && m.event !== event) return false;
+    if (date && m.dateStr !== date) return false;
+    if (month && m.month !== parseInt(month)) return false;
+    if (year && m.year !== parseInt(year)) return false;
+    return true;
+  });
+}
+
+function renderHistoryTable() {
+  const body = document.getElementById('paHistoryBody');
+  const filtered = getFilteredHistory();
+  document.getElementById('paMatchCount').textContent = filtered.length + ' match' + (filtered.length !== 1 ? 'es' : '');
+
+  if (!filtered.length) {
+    body.innerHTML = '<tr><td colspan="7" class="empty-state">No matches found for current filters.</td></tr>';
+    return;
+  }
+
+  const teamFilter = paFilteredTeam.toLowerCase();
+
+  body.innerHTML = filtered.map(m => {
+    // Format date
+    const dDisplay = m.dateObj ? m.dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : m.dateStr;
+
+    // Determine outcome for the filtered team
+    let outcomeHtml = '';
+    if (teamFilter) {
+      const isTeam1 = m.team1.toLowerCase().includes(teamFilter);
+      const isTeam2 = m.team2.toLowerCase().includes(teamFilter);
+      const selectedTeam = isTeam1 ? m.team1 : isTeam2 ? m.team2 : '';
+      if (selectedTeam) {
+        const won = m.winner === selectedTeam;
+        const cls = won ? 'pa-outcome-win' : 'pa-outcome-loss';
+        const label = won ? 'WIN' : 'LOSS';
+        outcomeHtml = `<span class="${cls}">${label}</span>`;
+      }
+    }
+
+    // Highlight team names
+    let t1Html = escHtml(m.team1);
+    let t2Html = escHtml(m.team2);
+    if (teamFilter) {
+      if (m.team1.toLowerCase().includes(teamFilter)) t1Html = `<strong class="pa-team-highlight">${escHtml(m.team1)}</strong>`;
+      if (m.team2.toLowerCase().includes(teamFilter)) t2Html = `<strong class="pa-team-highlight">${escHtml(m.team2)}</strong>`;
+    }
+
+    // Color the result based on winner
+    let resultCls = '';
+    if (teamFilter) {
+      const isTeam1 = m.team1.toLowerCase().includes(teamFilter);
+      const isTeam2 = m.team2.toLowerCase().includes(teamFilter);
+      if (isTeam1 && m.score1 > m.score2) resultCls = 'pa-result-win';
+      else if (isTeam1 && m.score1 < m.score2) resultCls = 'pa-result-loss';
+      else if (isTeam2 && m.score2 > m.score1) resultCls = 'pa-result-win';
+      else if (isTeam2 && m.score2 < m.score1) resultCls = 'pa-result-loss';
+    }
+
+    return `<tr>
+      <td class="mono text-xs">${dDisplay}</td>
+      <td>${t1Html}</td>
+      <td class="center mono ${resultCls}">${escHtml(m.result)}</td>
+      <td>${t2Html}</td>
+      <td><span class="pa-map-badge">${escHtml(m.map)}</span></td>
+      <td class="text-xs">${escHtml(m.event)}</td>
+      <td class="center">${outcomeHtml}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ════════════════════════════════════════
+   H2H ANALYSIS ENGINE
+════════════════════════════════════════ */
+function runH2hAnalysis() {
+  const nameA = document.getElementById('h2hTeamA').value.trim();
+  const nameB = document.getElementById('h2hTeamB').value.trim();
+  const output = document.getElementById('h2hOutput');
+
+  if (!nameA || !nameB) { output.innerHTML = '<div class="empty-state">Please select both teams.</div>'; return; }
+  if (nameA.toLowerCase() === nameB.toLowerCase()) { output.innerHTML = '<div class="empty-state">Please select two different teams.</div>'; return; }
+
+  const aL = nameA.toLowerCase(), bL = nameB.toLowerCase();
+
+  // Get all matches for each team
+  const matchesA = historyData.filter(m => m.team1.toLowerCase() === aL || m.team2.toLowerCase() === aL);
+  const matchesB = historyData.filter(m => m.team1.toLowerCase() === bL || m.team2.toLowerCase() === bL);
+
+  // H2H matches
+  const h2hMatches = historyData.filter(m =>
+    (m.team1.toLowerCase() === aL && m.team2.toLowerCase() === bL) ||
+    (m.team1.toLowerCase() === bL && m.team2.toLowerCase() === aL)
+  );
+
+  // Stats helper
+  function teamStats(matches, teamNameLower) {
+    let wins = 0, losses = 0;
+    const mapStats = {};
+    matches.forEach(m => {
+      const won = m.winner.toLowerCase() === teamNameLower;
+      if (won) wins++; else losses++;
+      if (m.map) {
+        if (!mapStats[m.map]) mapStats[m.map] = { wins: 0, losses: 0, total: 0 };
+        mapStats[m.map].total++;
+        if (won) mapStats[m.map].wins++; else mapStats[m.map].losses++;
+      }
+    });
+
+    // Streak (most recent consecutive results)
+    let streak = 0, streakType = '';
+    for (const m of matches) {
+      const won = m.winner.toLowerCase() === teamNameLower;
+      const res = won ? 'W' : 'L';
+      if (!streakType) { streakType = res; streak = 1; }
+      else if (res === streakType) streak++;
+      else break;
+    }
+
+    return { wins, losses, total: matches.length, wr: matches.length > 0 ? (wins / matches.length * 100).toFixed(1) : '0.0', mapStats, streak, streakType };
+  }
+
+  const statsA = teamStats(matchesA, aL);
+  const statsB = teamStats(matchesB, bL);
+
+  // H2H specific stats
+  let h2hWinsA = 0, h2hWinsB = 0;
+  const h2hMapStats = {};
+  h2hMatches.forEach(m => {
+    if (m.winner.toLowerCase() === aL) h2hWinsA++;
+    else if (m.winner.toLowerCase() === bL) h2hWinsB++;
+    if (m.map) {
+      if (!h2hMapStats[m.map]) h2hMapStats[m.map] = { winsA: 0, winsB: 0, total: 0 };
+      h2hMapStats[m.map].total++;
+      if (m.winner.toLowerCase() === aL) h2hMapStats[m.map].winsA++;
+      else h2hMapStats[m.map].winsB++;
+    }
+  });
+
+  // Last 5 matches for each team
+  const last5A = matchesA.slice(0, 5);
+  const last5B = matchesB.slice(0, 5);
+
+  // Map proficiency: sort by total played, highlight best(yellow) and worst(purple)
+  function mapProficiency(mapStats) {
+    const entries = Object.entries(mapStats).map(([map, s]) => ({
+      map, wins: s.wins, losses: s.losses, total: s.total, wr: s.total > 0 ? (s.wins / s.total * 100) : 0
+    })).sort((a, b) => b.total - a.total);
+
+    if (entries.length === 0) return entries;
+
+    // Best: highest WR with at least some games; Worst: most losses > wins
+    let bestWr = -1, worstWr = 101;
+    entries.forEach(e => {
+      if (e.wr > bestWr) bestWr = e.wr;
+      if (e.wr < worstWr) worstWr = e.wr;
+    });
+    entries.forEach(e => {
+      e.isBest = e.wr === bestWr && e.total > 0;
+      e.isWorst = e.wr === worstWr && e.total > 0 && entries.length > 1;
+    });
+    return entries;
+  }
+
+  const mapsA = mapProficiency(statsA.mapStats);
+  const mapsB = mapProficiency(statsB.mapStats);
+
+  // === Build Verdict ===
+  let verdictText = '', verdictColor = '';
+  const totalFactors = { a: 0, b: 0 };
+
+  // Factor: H2H
+  if (h2hMatches.length > 0) {
+    if (h2hWinsA > h2hWinsB) totalFactors.a += 2; else if (h2hWinsB > h2hWinsA) totalFactors.b += 2;
+  }
+  // Factor: Win rate
+  if (parseFloat(statsA.wr) > parseFloat(statsB.wr)) totalFactors.a += 1; else if (parseFloat(statsB.wr) > parseFloat(statsA.wr)) totalFactors.b += 1;
+  // Factor: Form (streak)
+  if (statsA.streakType === 'W' && statsA.streak >= 2) totalFactors.a += 1;
+  if (statsB.streakType === 'W' && statsB.streak >= 2) totalFactors.b += 1;
+  // Factor: Total games experience
+  if (statsA.total > statsB.total * 1.2) totalFactors.a += 0.5;
+  if (statsB.total > statsA.total * 1.2) totalFactors.b += 0.5;
+
+  if (totalFactors.a > totalFactors.b) {
+    verdictText = `${nameA} has the edge based on H2H record, form, and win rate analysis.`;
+    verdictColor = 'var(--accent)';
+  } else if (totalFactors.b > totalFactors.a) {
+    verdictText = `${nameB} has the edge based on H2H record, form, and win rate analysis.`;
+    verdictColor = 'var(--accent2)';
+  } else {
+    verdictText = 'This matchup is extremely balanced. Expect a closely contested series.';
+    verdictColor = 'var(--warn)';
+  }
+
+  // === Render ===
+  let html = `<div class="h2h-report">`;
+
+  // Header
+  html += `<div class="h2h-header">
+    <div class="h2h-team-card h2h-team-a">
+      <div class="h2h-team-name">${escHtml(nameA)}</div>
+      <div class="h2h-team-record">${statsA.wins}W — ${statsA.losses}L</div>
+      <div class="h2h-team-wr">${statsA.wr}% WR</div>
+    </div>
+    <div class="h2h-vs">
+      <div class="h2h-vs-label">VS</div>
+      <div class="h2h-vs-score">${h2hWinsA} — ${h2hWinsB}</div>
+      <div class="h2h-vs-sub">${h2hMatches.length} H2H match${h2hMatches.length !== 1 ? 'es' : ''}</div>
+    </div>
+    <div class="h2h-team-card h2h-team-b">
+      <div class="h2h-team-name">${escHtml(nameB)}</div>
+      <div class="h2h-team-record">${statsB.wins}W — ${statsB.losses}L</div>
+      <div class="h2h-team-wr">${statsB.wr}% WR</div>
+    </div>
+  </div>`;
+
+  // Comparison bars
+  html += `<div class="h2h-section">
+    <div class="h2h-section-title">Overall Comparison</div>
+    <div class="h2h-bars">
+      ${h2hCompBar('Win Rate', parseFloat(statsA.wr), parseFloat(statsB.wr), '%')}
+      ${h2hCompBar('Total Wins', statsA.wins, statsB.wins, '')}
+      ${h2hCompBar('Total Losses', statsA.losses, statsB.losses, '', true)}
+      ${h2hCompBar('Current Streak', statsA.streakType === 'W' ? statsA.streak : 0, statsB.streakType === 'W' ? statsB.streak : 0, 'W')}
+    </div>
+  </div>`;
+
+  // Streaks section
+  html += `<div class="h2h-section">
+    <div class="h2h-section-title">Current Form</div>
+    <div class="h2h-form-grid">
+      <div class="h2h-form-card">
+        <div class="h2h-form-team">${escHtml(nameA)}</div>
+        <div class="h2h-form-streak ${statsA.streakType === 'W' ? 'streak-win' : 'streak-loss'}">${statsA.streak}${statsA.streakType} Streak</div>
+        <div class="h2h-form-dots">${last5A.map(m => {
+          const won = m.winner.toLowerCase() === aL;
+          return `<span class="h2h-form-dot ${won ? 'dot-win' : 'dot-loss'}" title="${escHtml(m.team1)} ${m.result} ${escHtml(m.team2)}">${won ? 'W' : 'L'}</span>`;
+        }).join('')}</div>
+      </div>
+      <div class="h2h-form-card">
+        <div class="h2h-form-team">${escHtml(nameB)}</div>
+        <div class="h2h-form-streak ${statsB.streakType === 'W' ? 'streak-win' : 'streak-loss'}">${statsB.streak}${statsB.streakType} Streak</div>
+        <div class="h2h-form-dots">${last5B.map(m => {
+          const won = m.winner.toLowerCase() === bL;
+          return `<span class="h2h-form-dot ${won ? 'dot-win' : 'dot-loss'}" title="${escHtml(m.team1)} ${m.result} ${escHtml(m.team2)}">${won ? 'W' : 'L'}</span>`;
+        }).join('')}</div>
+      </div>
+    </div>
+  </div>`;
+
+  // H2H Map breakdown
+  if (Object.keys(h2hMapStats).length > 0) {
+    html += `<div class="h2h-section">
+      <div class="h2h-section-title">H2H Map Breakdown</div>
+      <div class="table-wrapper" style="max-height:240px">
+        <table class="h2h-map-table">
+          <thead><tr><th>Map</th><th class="center">${escHtml(nameA)} Wins</th><th class="center">${escHtml(nameB)} Wins</th><th class="center">Total</th></tr></thead>
+          <tbody>${Object.entries(h2hMapStats).sort((a, b) => b[1].total - a[1].total).map(([map, s]) => {
+            const aWinCls = s.winsA > s.winsB ? 'pa-result-win' : s.winsA < s.winsB ? 'pa-result-loss' : '';
+            const bWinCls = s.winsB > s.winsA ? 'pa-result-win' : s.winsB < s.winsA ? 'pa-result-loss' : '';
+            return `<tr><td><span class="pa-map-badge">${escHtml(map)}</span></td><td class="center mono ${aWinCls}">${s.winsA}</td><td class="center mono ${bWinCls}">${s.winsB}</td><td class="center mono">${s.total}</td></tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  // Map proficiency per team
+  function renderMapProf(teamName, maps) {
+    if (!maps.length) return `<div class="h2h-no-data">No map data for ${escHtml(teamName)}</div>`;
+    return `<div class="h2h-map-prof">
+      ${maps.map(m => {
+        let cls = '';
+        if (m.isBest) cls = 'pa-map-best';
+        else if (m.isWorst) cls = 'pa-map-worst';
+        return `<div class="h2h-map-chip ${cls}">
+          <span class="h2h-map-chip-name">${escHtml(m.map)}</span>
+          <span class="h2h-map-chip-stats">${m.wins}W-${m.losses}L</span>
+          <span class="h2h-map-chip-wr">${m.wr.toFixed(0)}%</span>
+        </div>`;
+      }).join('')}
+      <div class="h2h-map-legend"><span class="h2h-legend-best">● Best map</span> <span class="h2h-legend-worst">● Worst map</span></div>
+    </div>`;
+  }
+
+  html += `<div class="h2h-section">
+    <div class="h2h-section-title">Map Proficiency</div>
+    <div class="h2h-map-prof-grid">
+      <div>
+        <div class="h2h-map-prof-team">${escHtml(nameA)}</div>
+        ${renderMapProf(nameA, mapsA)}
+      </div>
+      <div>
+        <div class="h2h-map-prof-team">${escHtml(nameB)}</div>
+        ${renderMapProf(nameB, mapsB)}
+      </div>
+    </div>
+  </div>`;
+
+  // Last 5 matches per team
+  function renderLast5(teamName, last5, teamLower) {
+    if (!last5.length) return '<div class="h2h-no-data">No recent matches.</div>';
+    return `<div class="table-wrapper" style="max-height:220px">
+      <table class="h2h-recent-table">
+        <thead><tr><th>Date</th><th>Opponent</th><th class="center">Result</th><th>Map</th><th class="center">W/L</th></tr></thead>
+        <tbody>${last5.map(m => {
+          const opp = m.team1.toLowerCase() === teamLower ? m.team2 : m.team1;
+          const won = m.winner.toLowerCase() === teamLower;
+          const dDisplay = m.dateObj ? m.dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : m.dateStr;
+          return `<tr>
+            <td class="mono text-xs">${dDisplay}</td>
+            <td>${escHtml(opp)}</td>
+            <td class="center mono ${won ? 'pa-result-win' : 'pa-result-loss'}">${escHtml(m.result)}</td>
+            <td><span class="pa-map-badge">${escHtml(m.map)}</span></td>
+            <td class="center"><span class="${won ? 'pa-outcome-win' : 'pa-outcome-loss'}">${won ? 'W' : 'L'}</span></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+  }
+
+  html += `<div class="h2h-section">
+    <div class="h2h-section-title">Recent Matches (Last 5)</div>
+    <div class="h2h-recent-grid">
+      <div>
+        <div class="h2h-recent-team">${escHtml(nameA)}</div>
+        ${renderLast5(nameA, last5A, aL)}
+      </div>
+      <div>
+        <div class="h2h-recent-team">${escHtml(nameB)}</div>
+        ${renderLast5(nameB, last5B, bL)}
+      </div>
+    </div>
+  </div>`;
+
+  // H2H full history
+  if (h2hMatches.length > 0) {
+    html += `<div class="h2h-section">
+      <div class="h2h-section-title">H2H Match History</div>
+      <div class="table-wrapper" style="max-height:280px">
+        <table class="h2h-history-table">
+          <thead><tr><th>Date</th><th>Team 1</th><th class="center">Result</th><th>Team 2</th><th>Map</th><th>Event</th></tr></thead>
+          <tbody>${h2hMatches.map(m => {
+            const dDisplay = m.dateObj ? m.dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : m.dateStr;
+            const t1Win = m.winner.toLowerCase() === m.team1.toLowerCase();
+            return `<tr>
+              <td class="mono text-xs">${dDisplay}</td>
+              <td class="${t1Win ? 'pa-winner-cell' : ''}">${escHtml(m.team1)}</td>
+              <td class="center mono">${escHtml(m.result)}</td>
+              <td class="${!t1Win ? 'pa-winner-cell' : ''}">${escHtml(m.team2)}</td>
+              <td><span class="pa-map-badge">${escHtml(m.map)}</span></td>
+              <td class="text-xs">${escHtml(m.event)}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  // Verdict
+  html += `<div class="h2h-verdict">
+    <div class="h2h-verdict-icon">🎯</div>
+    <div class="h2h-verdict-title" style="color:${verdictColor}">Verdict</div>
+    <div class="h2h-verdict-text">${escHtml(verdictText)}</div>
+    <div class="h2h-verdict-factors">
+      <span>H2H: ${h2hWinsA}-${h2hWinsB}</span>
+      <span>WR: ${statsA.wr}% vs ${statsB.wr}%</span>
+      <span>Form: ${statsA.streak}${statsA.streakType} vs ${statsB.streak}${statsB.streakType}</span>
+    </div>
+  </div>`;
+
+  html += `</div>`;
+  output.innerHTML = html;
+}
+
+/* ─── Comparison bar helper ─── */
+function h2hCompBar(label, valA, valB, suffix, invertColors = false) {
+  const total = valA + valB || 1;
+  const pctA = (valA / total * 100).toFixed(1);
+  const pctB = (valB / total * 100).toFixed(1);
+  let clsA = 'h2h-bar-a', clsB = 'h2h-bar-b';
+  if (invertColors) { clsA = 'h2h-bar-b'; clsB = 'h2h-bar-a'; } // losses: lower is better
+  const winnerCls = valA > valB ? clsA + ' h2h-bar-lead' : valB > valA ? clsB + ' h2h-bar-lead' : '';
+  return `<div class="h2h-bar-row">
+    <div class="h2h-bar-label">${escHtml(label)}</div>
+    <div class="h2h-bar-values">
+      <span class="h2h-bar-val-a ${valA > valB && !invertColors ? 'h2h-val-win' : ''}">${valA}${suffix}</span>
+      <div class="h2h-bar-track">
+        <div class="${clsA}" style="width:${pctA}%"></div>
+        <div class="${clsB}" style="width:${pctB}%"></div>
+      </div>
+      <span class="h2h-bar-val-b ${valB > valA && !invertColors ? 'h2h-val-win' : ''}">${valB}${suffix}</span>
+    </div>
+  </div>`;
 }
 
 /* ════════════════════════════════════════

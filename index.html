@@ -51,6 +51,9 @@
       <a class="nav-item" data-panel="pro-analyses" onclick="switchPanel('pro-analyses');return false" href="#">
         <span class="nav-icon">🎯</span><span class="nav-label">Pro Analyses</span>
       </a>
+      <a class="nav-item" data-panel="seeding" onclick="switchPanel('seeding');return false" href="#">
+        <span class="nav-icon">🌱</span><span class="nav-label">Seeding</span>
+      </a>
 
       <div class="sidebar-divider"></div>
       <div class="sidebar-section">Intelligence</div>
@@ -508,6 +511,37 @@
           </div>
         </div>
 
+      </div>
+
+      <!-- ═══════════════════════════════════════
+           SEEDING
+      ═══════════════════════════════════════ -->
+      <div class="panel" id="panel-seeding">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Seeding Generator</div><div class="card-subtitle">Strong vs Weak matchup seeding with randomized bracket order</div></div>
+          </div>
+          <div class="card-body">
+            <div class="seed-layout">
+              <!-- Left: team input -->
+              <div class="seed-input-area">
+                <label class="form-label">Team Names <span style="color:var(--muted2); font-weight:400">(one per line)</span></label>
+                <textarea class="form-control seed-textarea" id="seedTeamInput" placeholder="Team Alpha&#10;Team Bravo&#10;Team Charlie&#10;..."></textarea>
+                <div class="seed-actions">
+                  <button class="btn btn-primary" id="btnSeedGenerate">🌱 Generate Seeding</button>
+                  <button class="btn btn-ghost" id="btnSeedClear">✕ Clear</button>
+                </div>
+                <div class="seed-info" id="seedInfo"></div>
+              </div>
+              <!-- Right: results -->
+              <div class="seed-results-area">
+                <div id="seedOutput">
+                  <div class="empty-state">Enter team names and click <strong>Generate Seeding</strong> to create matchups.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ═══════════════════════════════════════

@@ -16,56 +16,58 @@
   <!-- ════════════════════════════════════════════
        SIDEBAR
   ════════════════════════════════════════════ -->
-  <aside class="sidebar" id="sidebar" style="overflow-y: auto; max-height: 100vh;">
+  <aside class="sidebar" id="sidebar">
     <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">◀</button>
 
     <div class="logo">NEXUS</div>
     <div class="logo-sub">Ranking Command</div>
 
-    <div class="sidebar-section">Main Views</div>
-    <a class="nav-item active" data-panel="dashboard" onclick="switchPanel('dashboard');return false" href="#">
-      <span class="nav-icon">📊</span><span class="nav-label">Dashboard</span>
-    </a>
-    <a class="nav-item" data-panel="charts" onclick="switchPanel('charts');return false" href="#">
-      <span class="nav-icon">📈</span><span class="nav-label">Charts & Analytics</span>
-    </a>
+    <div class="sidebar-nav">
+      <div class="sidebar-section">Main Views</div>
+      <a class="nav-item active" data-panel="dashboard" onclick="switchPanel('dashboard');return false" href="#">
+        <span class="nav-icon">📊</span><span class="nav-label">Dashboard</span>
+      </a>
+      <a class="nav-item" data-panel="charts" onclick="switchPanel('charts');return false" href="#">
+        <span class="nav-icon">📈</span><span class="nav-label">Charts & Analytics</span>
+      </a>
 
-    <div class="sidebar-divider"></div>
-    <div class="sidebar-section">Rankings</div>
-    <a class="nav-item" data-panel="global" onclick="switchPanel('global');return false" href="#">
-      <span class="nav-icon">🌐</span><span class="nav-label">Global Ranking</span>
-    </a>
-    <a class="nav-item" data-panel="region" onclick="switchPanel('region');return false" href="#">
-      <span class="nav-icon">🗺</span><span class="nav-label">Regional Ranking</span>
-    </a>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-section">Rankings</div>
+      <a class="nav-item" data-panel="global" onclick="switchPanel('global');return false" href="#">
+        <span class="nav-icon">🌐</span><span class="nav-label">Global Ranking</span>
+      </a>
+      <a class="nav-item" data-panel="region" onclick="switchPanel('region');return false" href="#">
+        <span class="nav-icon">🗺</span><span class="nav-label">Regional Ranking</span>
+      </a>
 
-    <div class="sidebar-divider"></div>
-    <div class="sidebar-section">Tools</div>
-    <a class="nav-item" data-panel="predictor" onclick="switchPanel('predictor');return false" href="#">
-      <span class="nav-icon">⚡</span><span class="nav-label">Match Predictor</span>
-    </a>
-    <a class="nav-item" data-panel="legends" onclick="switchPanel('legends');return false" href="#">
-      <span class="nav-icon">👑</span><span class="nav-label">Legends Hall</span>
-    </a>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-section">Tools</div>
+      <a class="nav-item" data-panel="predictor" onclick="switchPanel('predictor');return false" href="#">
+        <span class="nav-icon">⚡</span><span class="nav-label">Match Predictor</span>
+      </a>
+      <a class="nav-item" data-panel="legends" onclick="switchPanel('legends');return false" href="#">
+        <span class="nav-icon">👑</span><span class="nav-label">Legends Hall</span>
+      </a>
 
-    <div class="sidebar-divider"></div>
-    <div class="sidebar-section">Intelligence</div>
-    <a class="nav-item" data-panel="analysis-vrs" onclick="switchPanel('analysis-vrs');return false" href="#">
-      <span class="nav-icon">🧠</span><span class="nav-label">VRS Analysis</span>
-    </a>
-    <a class="nav-item" data-panel="analysis-hltv" onclick="switchPanel('analysis-hltv');return false" href="#">
-      <span class="nav-icon">🔬</span><span class="nav-label">Data Insights</span>
-    </a>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-section">Intelligence</div>
+      <a class="nav-item" data-panel="analysis-vrs" onclick="switchPanel('analysis-vrs');return false" href="#">
+        <span class="nav-icon">🧠</span><span class="nav-label">VRS Analysis</span>
+      </a>
+      <a class="nav-item" data-panel="analysis-hltv" onclick="switchPanel('analysis-hltv');return false" href="#">
+        <span class="nav-icon">🔬</span><span class="nav-label">Data Insights</span>
+      </a>
 
-    <div class="sidebar-divider"></div>
-    <div class="side-stat">
-      <div class="side-pill"><span class="side-pill-label">Teams</span><span class="side-pill-value" id="sideTeams">—</span></div>
-      <div class="side-pill"><span class="side-pill-label">Risers</span><span class="side-pill-value up" id="sideUp">—</span></div>
-      <div class="side-pill"><span class="side-pill-label">Fallers</span><span class="side-pill-value down" id="sideDown">—</span></div>
+      <div class="sidebar-divider"></div>
+      <div class="side-stat">
+        <div class="side-pill"><span class="side-pill-label">Teams</span><span class="side-pill-value" id="sideTeams">—</span></div>
+        <div class="side-pill"><span class="side-pill-label">Risers</span><span class="side-pill-value up" id="sideUp">—</span></div>
+        <div class="side-pill"><span class="side-pill-label">Fallers</span><span class="side-pill-value down" id="sideDown">—</span></div>
+      </div>
+
+      <div class="sidebar-divider"></div>
+      <a class="nav-item" href="index.html"><span class="nav-icon">←</span><span class="nav-label">Back to Menu</span></a>
     </div>
-
-    <div class="sidebar-divider"></div>
-    <a class="nav-item" href="index.html"><span class="nav-icon">←</span><span class="nav-label">Back to Menu</span></a>
 
     <div class="sidebar-footer">
       <div class="sidebar-footer-text">NEXUS · KZ Studio · by Kilzys</div>

@@ -84,9 +84,37 @@ body::before {
   position: sticky;
   top: 0;
   height: 100vh;
+  overflow: hidden;
+  transition: padding 0.3s cubic-bezier(0.4,0,0.2,1), width 0.3s;
+}
+
+/* Scrollable nav area */
+.sidebar-nav {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  transition: padding 0.3s cubic-bezier(0.4,0,0.2,1), width 0.3s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 2px;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  width: 3px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(79,140,255,0.25);
+  border-radius: 999px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(79,140,255,0.45);
 }
 
 .collapsed .sidebar {
@@ -213,11 +241,11 @@ body::before {
 }
 
 .sidebar-footer {
-  margin-top: auto;
   padding: 12px 8px 0;
   border-top: 1px solid var(--border);
   overflow: hidden;
   transition: opacity 0.2s;
+  flex-shrink: 0;
 }
 
 .collapsed .sidebar-footer {
@@ -305,6 +333,10 @@ body::before {
 
 .sidebar > * {
   flex-shrink: 0;
+}
+
+.sidebar > .sidebar-nav {
+  flex-shrink: 1;
 }
 
 .side-pill-value.up { color: var(--good); }

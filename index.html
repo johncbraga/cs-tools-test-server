@@ -43,7 +43,7 @@
       <div class="sidebar-divider"></div>
       <div class="sidebar-section">Tools</div>
       <a class="nav-item" data-panel="predictor" onclick="switchPanel('predictor');return false" href="#">
-        <span class="nav-icon">⚡</span><span class="nav-label">Match Predictor</span>
+        <span class="nav-icon">⚡</span><span class="nav-label">Points Diff</span>
       </a>
       <a class="nav-item" data-panel="legends" onclick="switchPanel('legends');return false" href="#">
         <span class="nav-icon">👑</span><span class="nav-label">Legends Hall</span>
@@ -59,6 +59,9 @@
       </a>
       <a class="nav-item" data-panel="analysis-hltv" onclick="switchPanel('analysis-hltv');return false" href="#">
         <span class="nav-icon">🔬</span><span class="nav-label">Data Insights</span>
+      </a>
+      <a class="nav-item" data-panel="h2h" onclick="switchPanel('h2h');return false" href="#">
+        <span class="nav-icon">⚔️</span><span class="nav-label">H2H Analysis</span>
       </a>
 
       <div class="sidebar-divider"></div>
@@ -430,11 +433,6 @@
             <span class="pa-tab-label">Match History</span>
             <span class="pa-tab-badge" id="paTabHistoryBadge"></span>
           </button>
-          <button class="pa-tab" data-pa-tab="h2h" onclick="switchPaTab('h2h')">
-            <span class="pa-tab-icon">⚔️</span>
-            <span class="pa-tab-label">H2H Analysis</span>
-            <span class="pa-tab-glow"></span>
-          </button>
         </div>
 
         <!-- ═══ MATCH HISTORY TAB ═══ -->
@@ -507,42 +505,44 @@
           </div>
         </div>
 
-        <!-- ═══ H2H ANALYSIS TAB ═══ -->
-        <div class="pa-tab-content" id="pa-tab-h2h">
-          <div class="card">
-            <div class="card-header">
-              <div><div class="card-title">Head-to-Head Analysis</div><div class="card-subtitle">Select two teams for detailed comparison</div></div>
+      </div>
+
+      <!-- ═══════════════════════════════════════
+           H2H ANALYSIS (Intelligence)
+      ═══════════════════════════════════════ -->
+      <div class="panel" id="panel-h2h">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Head-to-Head Analysis</div><div class="card-subtitle">Select two teams for detailed comparison</div></div>
+          </div>
+          <div class="card-body">
+            <div class="controls-row" style="margin-bottom:16px">
+              <div class="form-group">
+                <label class="form-label">Team A</label>
+                <div class="pa-autocomplete-wrap">
+                  <input class="form-control" id="h2hTeamA" type="text" placeholder="Search team…" autocomplete="off">
+                  <div class="pa-autocomplete-list" id="h2hTeamASugg"></div>
+                </div>
+              </div>
+              <div style="display:flex; align-items:flex-end; padding-bottom:1px">
+                <span style="font-family:var(--font-display); font-weight:800; color:var(--muted2); font-size:18px">VS</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Team B</label>
+                <div class="pa-autocomplete-wrap">
+                  <input class="form-control" id="h2hTeamB" type="text" placeholder="Search team…" autocomplete="off">
+                  <div class="pa-autocomplete-list" id="h2hTeamBSugg"></div>
+                </div>
+              </div>
+              <div style="display:flex; align-items:flex-end;">
+                <button class="btn btn-primary" id="btnH2hAnalyze">🎯 Analyze</button>
+              </div>
             </div>
-            <div class="card-body">
-              <div class="controls-row" style="margin-bottom:16px">
-                <div class="form-group">
-                  <label class="form-label">Team A</label>
-                  <div class="pa-autocomplete-wrap">
-                    <input class="form-control" id="h2hTeamA" type="text" placeholder="Search team…" autocomplete="off">
-                    <div class="pa-autocomplete-list" id="h2hTeamASugg"></div>
-                  </div>
-                </div>
-                <div style="display:flex; align-items:flex-end; padding-bottom:1px">
-                  <span style="font-family:var(--font-display); font-weight:800; color:var(--muted2); font-size:18px">VS</span>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Team B</label>
-                  <div class="pa-autocomplete-wrap">
-                    <input class="form-control" id="h2hTeamB" type="text" placeholder="Search team…" autocomplete="off">
-                    <div class="pa-autocomplete-list" id="h2hTeamBSugg"></div>
-                  </div>
-                </div>
-                <div style="display:flex; align-items:flex-end;">
-                  <button class="btn btn-primary" id="btnH2hAnalyze">🎯 Analyze</button>
-                </div>
-              </div>
-              <div id="h2hOutput">
-                <div class="empty-state">Select two teams and click <strong>Analyze</strong> to see head-to-head insights.</div>
-              </div>
+            <div id="h2hOutput">
+              <div class="empty-state">Select two teams and click <strong>Analyze</strong> to see head-to-head insights.</div>
             </div>
           </div>
         </div>
-
       </div>
     </div><!-- /panels -->
   </main>

@@ -63,7 +63,8 @@ const PANEL_TITLES = {
   'analysis-hltv': 'Data Insights',
   'pro-analyses': 'Pro Analyses',
   'seeding': 'Seeding',
-  'h2h': 'H2H Analysis'
+  'h2h': 'H2H Analysis',
+  'events': 'Events'
 };
 
 function switchPanel(name) {
@@ -385,6 +386,10 @@ function computeVRS() {
   updateMatchTeamOptions(newTeams);
   enablePredictor(true);
   renderMatchPredictor();
+
+  // Populate seeding team list
+  seedTeamData = [];
+  populateSeedTeamList();
 }
 
 /* ════════════════════════════════════════
@@ -1760,46 +1765,125 @@ document.addEventListener('keydown', e => {
 /* ════════════════════════════════════════
    SEEDING GENERATOR
 ════════════════════════════════════════ */
-function generateSeeding() {
-  const textarea = $('#seedTeamInput');
-  const output = $('#seedOutput');
-  const info = $('#seedInfo');
+let seedTeamData = []; // loaded from ranking.xlsx via currentNewTeams
+let seedSelectedSet = new Set(); // lowercase keys of selected teams
 
-  // Parse input names (one per line, trim, remove empty)
-  const inputNames = textarea.value.split('\n').map(s => s.trim()).filter(Boolean);
-  if (inputNames.length < 2) {
-    info.innerHTML = '<span style="color:var(--bad)">⚠ Enter at least 2 team names.</span>';
+function populateSeedTeamList(filter = '') {
+  const list = $('#seedTeamList');
+  if (!currentNewTeams || !currentNewTeams.length) {
+    list.innerHTML = '<div class="empty-state" style="font-size:12px; padding:16px">No ranking data loaded yet.</div>';
+    updateSeedCount();
     return;
   }
 
-  // Remove duplicates (case-insensitive)
-  const seen = new Set();
-  const uniqueNames = [];
-  for (const n of inputNames) {
-    const key = n.toLowerCase();
-    if (!seen.has(key)) { seen.add(key); uniqueNames.push(n); }
+  // Cache sorted teams on first call
+  if (!seedTeamData.length) {
+    seedTeamData = [...currentNewTeams].sort((a, b) => b.points - a.points);
   }
 
-  // Build lookup from ranking data (currentNewTeams)
-  const rankMap = new Map();
-  if (currentNewTeams && currentNewTeams.length) {
-    currentNewTeams.forEach(t => {
-      rankMap.set(t.team.toLowerCase(), t);
+  const q = filter.trim().toLowerCase();
+  const filtered = q
+    ? seedTeamData.filter(t => t.team.toLowerCase().includes(q))
+    : seedTeamData;
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="empty-state" style="font-size:12px; padding:16px">No teams match the filter.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map((t, i) => {
+    const key = t.team.toLowerCase();
+    const checked = seedSelectedSet.has(key) ? 'checked' : '';
+    const selCls = seedSelectedSet.has(key) ? ' selected' : '';
+    const rank = seedTeamData.indexOf(t) + 1;
+    return `<label class="seed-team-item${selCls}" data-key="${escHtml(key)}">
+      <input type="checkbox" ${checked} data-team-key="${escHtml(key)}">
+      <span class="seed-team-rank-label">#${rank}</span>
+      <span class="seed-team-name-label">${escHtml(t.team)}</span>
+      <span class="seed-team-pts-label">${Math.trunc(t.points).toLocaleString()} pts</span>
+    </label>`;
+  }).join('');
+
+  // Attach change listeners
+  list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const key = cb.dataset.teamKey;
+      if (cb.checked) seedSelectedSet.add(key);
+      else seedSelectedSet.delete(key);
+      cb.closest('.seed-team-item').classList.toggle('selected', cb.checked);
+      updateSeedCount();
     });
+  });
+}
+
+function updateSeedCount() {
+  const el = $('#seedSelectedCount');
+  if (el) el.textContent = `(${seedSelectedSet.size} selected)`;
+}
+
+function seedQuickSelect() {
+  const textarea = $('#seedQuickInput');
+  const lines = textarea.value.split('\n').map(s => s.trim()).filter(Boolean);
+  if (!lines.length) return;
+  if (!seedTeamData.length) return;
+
+  const teamMap = new Map();
+  seedTeamData.forEach(t => teamMap.set(t.team.toLowerCase(), t));
+
+  let matched = 0, notFound = [];
+  for (const line of lines) {
+    const key = line.toLowerCase();
+    if (teamMap.has(key)) {
+      seedSelectedSet.add(key);
+      matched++;
+    } else {
+      // Try partial match
+      const partial = seedTeamData.find(t => t.team.toLowerCase().includes(key));
+      if (partial) {
+        seedSelectedSet.add(partial.team.toLowerCase());
+        matched++;
+      } else {
+        notFound.push(line);
+      }
+    }
   }
 
-  // Match teams and assign points — unmatched teams get 0 points
+  // Re-render the list to update checkboxes
+  populateSeedTeamList($('#seedTeamSearch').value);
+  updateSeedCount();
+
+  const info = $('#seedInfo');
+  let msg = `<span style="color:var(--good)">✓ ${matched} team${matched !== 1 ? 's' : ''} matched</span>`;
+  if (notFound.length) {
+    msg += ` · <span style="color:var(--warn)">⚠ Not found: ${notFound.map(n => escHtml(n)).join(', ')}</span>`;
+  }
+  info.innerHTML = msg;
+}
+
+function generateSeeding() {
+  const output = $('#seedOutput');
+  const info = $('#seedInfo');
+
+  if (seedSelectedSet.size < 2) {
+    info.innerHTML = '<span style="color:var(--bad)">⚠ Select at least 2 teams.</span>';
+    return;
+  }
+
+  // Build selected teams array from ranking data
+  const teamMap = new Map();
+  if (currentNewTeams) currentNewTeams.forEach(t => teamMap.set(t.team.toLowerCase(), t));
+
   const matched = [];
-  const notFound = [];
-  for (const name of uniqueNames) {
-    const key = name.toLowerCase();
-    const data = rankMap.get(key);
+  for (const key of seedSelectedSet) {
+    const data = teamMap.get(key);
     if (data) {
       matched.push({ name: data.team, points: data.points, pos: data.pos, region: data.region, tier: data.tier });
-    } else {
-      notFound.push(name);
-      matched.push({ name, points: 0, pos: 999, region: '—', tier: '—' });
     }
+  }
+
+  if (matched.length < 2) {
+    info.innerHTML = '<span style="color:var(--bad)">⚠ At least 2 valid teams required.</span>';
+    return;
   }
 
   // Sort by points descending (strongest first)
@@ -1809,9 +1893,6 @@ function generateSeeding() {
   const total = matched.length;
   const hasOdd = total % 2 !== 0;
   let infoHtml = `<span style="color:var(--accent)">${total} team${total > 1 ? 's' : ''} selected</span>`;
-  if (notFound.length) {
-    infoHtml += ` · <span style="color:var(--warn)">${notFound.length} not found in ranking (0 pts)</span>`;
-  }
   if (hasOdd) {
     infoHtml += ` · <span style="color:var(--warn)">Odd count → 1 BYE</span>`;
   }
@@ -1840,13 +1921,11 @@ function generateSeeding() {
 
   // Randomize sides within each match & pick one to highlight (wine color)
   matches.forEach(m => {
-    // Swap sides randomly
     if (Math.random() < 0.5) {
       const tmp = m.teamA;
       m.teamA = m.teamB;
       m.teamB = tmp;
     }
-    // Wine highlight: randomly pick left (A) or right (B)
     m.wineHighlight = Math.random() < 0.5 ? 'A' : 'B';
   });
 
@@ -1858,7 +1937,7 @@ function generateSeeding() {
   html += '<span class="seed-order-title">🏆 Seed Order (by Points)</span>';
   html += '<div class="seed-order-list">';
   matched.forEach((t, i) => {
-    html += `<span class="seed-order-chip">${i + 1}. ${escHtml(t.name)} <span class="seed-order-pts">${t.points.toLocaleString()} pts</span></span>`;
+    html += `<span class="seed-order-chip">${i + 1}. ${escHtml(t.name)} <span class="seed-order-pts">${Math.trunc(t.points).toLocaleString()} pts</span></span>`;
   });
   html += '</div></div>';
 
@@ -1873,12 +1952,12 @@ function generateSeeding() {
     html += `<div class="seed-match-body">`;
     html += `<div class="seed-match-team${aWine}">`;
     html += `<span class="seed-team-name">${escHtml(m.teamA.name)}</span>`;
-    html += `<span class="seed-team-pts">${m.teamA.points.toLocaleString()} pts</span>`;
+    html += `<span class="seed-team-pts">${Math.trunc(m.teamA.points).toLocaleString()} pts</span>`;
     html += `</div>`;
     html += `<div class="seed-vs">VS</div>`;
     html += `<div class="seed-match-team${bWine}">`;
     html += `<span class="seed-team-name">${escHtml(m.teamB.name)}</span>`;
-    html += `<span class="seed-team-pts">${m.teamB.points.toLocaleString()} pts</span>`;
+    html += `<span class="seed-team-pts">${Math.trunc(m.teamB.points).toLocaleString()} pts</span>`;
     html += `</div>`;
     html += `</div></div>`;
   });
@@ -1890,7 +1969,7 @@ function generateSeeding() {
     html += `<div class="seed-match-body seed-bye-body">`;
     html += `<div class="seed-match-team seed-bye-team">`;
     html += `<span class="seed-team-name">${escHtml(byeTeam.name)}</span>`;
-    html += `<span class="seed-team-pts">${byeTeam.points.toLocaleString()} pts</span>`;
+    html += `<span class="seed-team-pts">${Math.trunc(byeTeam.points).toLocaleString()} pts</span>`;
     html += `</div>`;
     html += `<div class="seed-bye-label">⟶ Advances directly</div>`;
     html += `</div></div>`;
@@ -1900,11 +1979,411 @@ function generateSeeding() {
   output.innerHTML = html;
 }
 
+// Event listeners for seeding
 $('#btnSeedGenerate').addEventListener('click', generateSeeding);
-$('#btnSeedClear').addEventListener('click', () => {
-  $('#seedTeamInput').value = '';
+
+$('#btnSeedQuickSelect').addEventListener('click', seedQuickSelect);
+
+$('#btnSeedSelectAll').addEventListener('click', () => {
+  if (!seedTeamData.length) return;
+  const q = $('#seedTeamSearch').value.trim().toLowerCase();
+  const visible = q ? seedTeamData.filter(t => t.team.toLowerCase().includes(q)) : seedTeamData;
+  visible.forEach(t => seedSelectedSet.add(t.team.toLowerCase()));
+  populateSeedTeamList($('#seedTeamSearch').value);
+  updateSeedCount();
+});
+
+$('#btnSeedClearSelection').addEventListener('click', () => {
+  seedSelectedSet.clear();
+  $('#seedQuickInput').value = '';
   $('#seedInfo').innerHTML = '';
-  $('#seedOutput').innerHTML = '<div class="empty-state">Enter team names and click <strong>Generate Seeding</strong> to create matchups.</div>';
+  $('#seedOutput').innerHTML = '<div class="empty-state">Select teams and click <strong>Generate Seeding</strong> to create matchups.</div>';
+  populateSeedTeamList($('#seedTeamSearch').value);
+  updateSeedCount();
+});
+
+$('#seedTeamSearch').addEventListener('input', () => {
+  populateSeedTeamList($('#seedTeamSearch').value);
+});
+
+/* ════════════════════════════════════════
+   EVENTS TOOL — kz-events-backup.json
+════════════════════════════════════════ */
+let eventsData = [];
+let evEditIndex = -1; // -1 = add mode, >=0 = edit mode
+
+const EVENTS_JSON_URL = 'file/kz-events-backup.json';
+
+async function loadEventsJson() {
+  try {
+    const res = await fetch(EVENTS_JSON_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    eventsData = await res.json();
+    if (!Array.isArray(eventsData)) eventsData = [];
+  } catch (e) {
+    console.warn('Events JSON not found or invalid, starting empty.', e);
+    eventsData = [];
+  }
+  refreshEventsUI();
+}
+
+/* ─── Summary Stats ─── */
+function updateEventsStats() {
+  const total = eventsData.length;
+  const live = eventsData.filter(e => (e.status || '').toLowerCase() === 'live').length;
+  const majors = eventsData.filter(e => e.major === 'yes' || e.major === true).length;
+  let totalPrize = 0;
+  eventsData.forEach(e => {
+    if (e.prizePool) {
+      const n = parseFloat(String(e.prizePool).replace(/[^0-9.]/g, ''));
+      if (!isNaN(n)) totalPrize += n;
+    }
+  });
+  const el = id => document.getElementById(id);
+  el('evTotalEvents').textContent = total;
+  el('evLiveEvents').textContent = live;
+  el('evMajors').textContent = majors;
+  el('evTotalPrize').textContent = '$' + totalPrize.toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+
+/* ─── Populate filter dropdowns ─── */
+function populateEventsFilters() {
+  // Player medal filter
+  const playerSet = new Set();
+  eventsData.forEach(e => {
+    if ((e.status || '').toLowerCase() === 'finished') {
+      ['mvp', 'evp', 'vp'].forEach(k => {
+        const v = (e[k] || '').trim();
+        if (v) playerSet.add(v);
+      });
+    }
+  });
+  const playerSel = document.getElementById('evFilterPlayer');
+  const prevPlayer = playerSel.value;
+  playerSel.innerHTML = '<option value="">All Players</option>';
+  [...playerSet].sort((a, b) => a.localeCompare(b)).forEach(p => {
+    playerSel.innerHTML += `<option value="${escHtml(p)}">${escHtml(p)}</option>`;
+  });
+  playerSel.value = prevPlayer;
+
+  // Team wins filter (only winners / top1)
+  const teamSet = new Set();
+  eventsData.forEach(e => {
+    if ((e.status || '').toLowerCase() === 'finished') {
+      const w = (e.winner || '').trim();
+      if (w) teamSet.add(w);
+    }
+  });
+  const teamSel = document.getElementById('evFilterTeamWin');
+  const prevTeam = teamSel.value;
+  teamSel.innerHTML = '<option value="">All Teams</option>';
+  [...teamSet].sort((a, b) => a.localeCompare(b)).forEach(t => {
+    teamSel.innerHTML += `<option value="${escHtml(t)}">${escHtml(t)}</option>`;
+  });
+  teamSel.value = prevTeam;
+}
+
+/* ─── Filter events ─── */
+function getFilteredEvents() {
+  const nameQ = (document.getElementById('evFilterName').value || '').trim().toLowerCase();
+  const playerQ = document.getElementById('evFilterPlayer').value;
+  const teamQ = document.getElementById('evFilterTeamWin').value;
+  const starsQ = document.getElementById('evFilterStars').value;
+
+  return eventsData.filter((e, idx) => {
+    // Name filter
+    if (nameQ && !(e.name || '').toLowerCase().includes(nameQ)) return false;
+    // Stars filter
+    if (starsQ && String(e.stars) !== starsQ) return false;
+    // Player medal filter
+    if (playerQ) {
+      const medals = [e.mvp, e.evp, e.vp].map(v => (v || '').trim());
+      if (!medals.includes(playerQ)) return false;
+    }
+    // Team win filter
+    if (teamQ && (e.winner || '').trim() !== teamQ) return false;
+    return true;
+  });
+}
+
+/* ─── Render events grid ─── */
+function renderEventsGrid() {
+  const grid = document.getElementById('eventsGrid');
+  const filtered = getFilteredEvents();
+
+  if (!filtered.length) {
+    grid.innerHTML = '<div class="empty-state">No events match the current filters.</div>';
+    return;
+  }
+
+  let html = '';
+  filtered.forEach(e => {
+    const idx = eventsData.indexOf(e);
+    const isLive = (e.status || '').toLowerCase() === 'live';
+    const isFinished = (e.status || '').toLowerCase() === 'finished';
+    const starStr = '⭐'.repeat(Math.min(5, Math.max(1, parseInt(e.stars) || 0)));
+    const isMajor = e.major === 'yes' || e.major === true;
+
+    html += `<div class="ev-card ${isLive ? 'ev-card-live' : ''}">`;
+
+    // Top section: logo + info
+    html += `<div class="ev-card-top">`;
+    if (e.logo) {
+      html += `<div class="ev-card-logo-wrap"><img src="${escHtml(e.logo)}" alt="" onerror="this.style.display='none'"></div>`;
+    }
+    html += `<div class="ev-card-info">`;
+    // Event name with optional Drive link
+    html += `<div class="ev-card-name">`;
+    if (e.driveLink) {
+      html += `<a href="${escHtml(e.driveLink)}" target="_blank" rel="noopener" title="Open in Google Drive">${escHtml(e.name || 'Unnamed Event')}</a>`;
+    } else {
+      html += escHtml(e.name || 'Unnamed Event');
+    }
+    html += `</div>`;
+    // Location
+    if (e.city || e.country) {
+      html += `<div class="ev-card-location">`;
+      if (e.flag) html += `<img class="ev-card-flag" src="${escHtml(e.flag)}" alt="" onerror="this.style.display='none'">`;
+      html += `${escHtml(e.city || '')}${e.city && e.country ? ', ' : ''}${escHtml(e.country || '')}`;
+      html += `</div>`;
+    }
+    // Meta badges
+    html += `<div class="ev-card-meta">`;
+    if (isMajor) html += `<span class="ev-badge ev-badge-major">Major</span>`;
+    if (isLive) html += `<span class="ev-badge ev-badge-live">● Live</span>`;
+    if (isFinished) html += `<span class="ev-badge ev-badge-finished">Finished</span>`;
+    if (e.stars) html += `<span class="ev-badge ev-badge-stars">${starStr}</span>`;
+    if (e.teamCount) html += `<span class="ev-badge ev-badge-teams">${e.teamCount} teams</span>`;
+    if (e.prizePool) html += `<span class="ev-badge ev-badge-prize">${escHtml(e.prizePool)}</span>`;
+    html += `</div>`;
+    html += `</div></div>`;
+
+    // Body — depends on status
+    html += `<div class="ev-card-body">`;
+    if (isFinished) {
+      // Winner with trophy
+      if (e.winner) {
+        html += `<div class="ev-card-result">`;
+        if (e.trophy) html += `<div class="ev-card-trophy-wrap"><img src="${escHtml(e.trophy)}" alt="🏆" onerror="this.textContent='🏆'"></div>`;
+        else html += `<div class="ev-card-trophy-wrap">🏆</div>`;
+        html += `<div><div class="ev-result-label">Winner</div><div class="ev-result-value gold-text">${escHtml(e.winner)}</div></div>`;
+        html += `</div>`;
+      }
+      if (e.second) {
+        html += `<div class="ev-card-result" style="border-color:rgba(192,200,216,0.15)">`;
+        html += `<div class="ev-card-trophy-wrap">🥈</div>`;
+        html += `<div><div class="ev-result-label">2nd Place</div><div class="ev-result-value silver-text">${escHtml(e.second)}</div></div>`;
+        html += `</div>`;
+      }
+      // Medals
+      const medals = [];
+      if (e.mvp) medals.push({ label: 'MVP', icon: '🥇', val: e.mvp });
+      if (e.evp) medals.push({ label: 'EVP', icon: '🥈', val: e.evp });
+      if (e.vp) medals.push({ label: 'VP', icon: '🥉', val: e.vp });
+      if (medals.length) {
+        html += `<div class="ev-card-medals">`;
+        medals.forEach(m => {
+          html += `<div class="ev-medal-row"><span class="ev-medal-label">${m.icon} ${m.label}</span><span class="ev-medal-value">${escHtml(m.val)}</span></div>`;
+        });
+        html += `</div>`;
+      }
+    } else if (isLive) {
+      html += `<div class="ev-card-live-info">`;
+      if (e.stage) {
+        html += `<div class="ev-live-stage"><div class="ev-live-stage-label">Stage</div><div class="ev-live-stage-value">${escHtml(e.stage)}</div></div>`;
+      }
+      const nextMatches = [e.nextMatch1, e.nextMatch2, e.nextMatch3].filter(Boolean);
+      if (nextMatches.length) {
+        html += `<div class="ev-live-matches">`;
+        nextMatches.forEach(m => {
+          html += `<div class="ev-live-match-item">${escHtml(m)}</div>`;
+        });
+        html += `</div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+
+    // Actions
+    html += `<div class="ev-card-actions">`;
+    html += `<button class="ev-btn-edit" onclick="openEditEvent(${idx})">✎ Edit</button>`;
+    html += `<button class="ev-btn-delete" onclick="deleteEvent(${idx})">🗑 Delete</button>`;
+    html += `</div>`;
+    html += `</div>`;
+  });
+
+  grid.innerHTML = html;
+}
+
+/* ─── Refresh entire events UI ─── */
+function refreshEventsUI() {
+  updateEventsStats();
+  populateEventsFilters();
+  renderEventsGrid();
+}
+
+/* ─── Modal open/close ─── */
+function openEventModal(editIdx = -1) {
+  evEditIndex = editIdx;
+  const overlay = document.getElementById('evModalOverlay');
+  document.getElementById('evModalTitle').textContent = editIdx >= 0 ? 'Edit Event' : 'Add Event';
+  clearEventModal();
+
+  if (editIdx >= 0 && eventsData[editIdx]) {
+    const e = eventsData[editIdx];
+    document.getElementById('evmName').value = e.name || '';
+    document.getElementById('evmDriveLink').value = e.driveLink || '';
+    document.getElementById('evmPrizePool').value = e.prizePool || '';
+    document.getElementById('evmLogo').value = e.logo || '';
+    document.getElementById('evmTrophy').value = e.trophy || '';
+    document.getElementById('evmCity').value = e.city || '';
+    document.getElementById('evmCountry').value = e.country || '';
+    document.getElementById('evmFlag').value = e.flag || '';
+    document.getElementById('evmTeamCount').value = e.teamCount || '';
+    document.getElementById('evmStars').value = String(e.stars || 3);
+    document.getElementById('evmMajor').value = (e.major === 'yes' || e.major === true) ? 'yes' : 'no';
+    document.getElementById('evmStatus').value = (e.status || 'Finished');
+    toggleStatusFields();
+    if ((e.status || '').toLowerCase() === 'live') {
+      document.getElementById('evmStage').value = e.stage || '';
+      document.getElementById('evmNext1').value = e.nextMatch1 || '';
+      document.getElementById('evmNext2').value = e.nextMatch2 || '';
+      document.getElementById('evmNext3').value = e.nextMatch3 || '';
+    } else {
+      document.getElementById('evmWinner').value = e.winner || '';
+      document.getElementById('evmSecond').value = e.second || '';
+      document.getElementById('evmMVP').value = e.mvp || '';
+      document.getElementById('evmEVP').value = e.evp || '';
+      document.getElementById('evmVP').value = e.vp || '';
+    }
+  }
+
+  overlay.classList.add('visible');
+}
+
+function closeEventModal() {
+  document.getElementById('evModalOverlay').classList.remove('visible');
+  evEditIndex = -1;
+}
+
+function clearEventModal() {
+  ['evmName','evmDriveLink','evmPrizePool','evmLogo','evmTrophy','evmCity','evmCountry',
+   'evmFlag','evmTeamCount','evmStage','evmNext1','evmNext2','evmNext3',
+   'evmWinner','evmSecond','evmMVP','evmEVP','evmVP'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('evmStars').value = '3';
+  document.getElementById('evmMajor').value = 'no';
+  document.getElementById('evmStatus').value = 'Finished';
+  toggleStatusFields();
+}
+
+function toggleStatusFields() {
+  const status = document.getElementById('evmStatus').value;
+  document.getElementById('evmLiveFields').style.display = (status === 'Live') ? 'block' : 'none';
+  document.getElementById('evmFinishedFields').style.display = (status === 'Finished') ? 'block' : 'none';
+}
+
+/* ─── Save event ─── */
+function saveEvent() {
+  const status = document.getElementById('evmStatus').value;
+  const ev = {
+    name: document.getElementById('evmName').value.trim(),
+    driveLink: document.getElementById('evmDriveLink').value.trim(),
+    prizePool: document.getElementById('evmPrizePool').value.trim(),
+    logo: document.getElementById('evmLogo').value.trim(),
+    trophy: document.getElementById('evmTrophy').value.trim(),
+    city: document.getElementById('evmCity').value.trim(),
+    country: document.getElementById('evmCountry').value.trim(),
+    flag: document.getElementById('evmFlag').value.trim(),
+    teamCount: parseInt(document.getElementById('evmTeamCount').value) || 0,
+    stars: parseInt(document.getElementById('evmStars').value) || 3,
+    major: document.getElementById('evmMajor').value,
+    status: status
+  };
+
+  if (status === 'Live') {
+    ev.stage = document.getElementById('evmStage').value.trim();
+    ev.nextMatch1 = document.getElementById('evmNext1').value.trim();
+    ev.nextMatch2 = document.getElementById('evmNext2').value.trim();
+    ev.nextMatch3 = document.getElementById('evmNext3').value.trim();
+    // Clear finished fields
+    ev.winner = ''; ev.second = ''; ev.mvp = ''; ev.evp = ''; ev.vp = '';
+  } else {
+    ev.winner = document.getElementById('evmWinner').value.trim();
+    ev.second = document.getElementById('evmSecond').value.trim();
+    ev.mvp = document.getElementById('evmMVP').value.trim();
+    ev.evp = document.getElementById('evmEVP').value.trim();
+    ev.vp = document.getElementById('evmVP').value.trim();
+    // Clear live fields
+    ev.stage = ''; ev.nextMatch1 = ''; ev.nextMatch2 = ''; ev.nextMatch3 = '';
+  }
+
+  if (!ev.name) {
+    alert('Event name is required.');
+    return;
+  }
+
+  if (evEditIndex >= 0) {
+    eventsData[evEditIndex] = ev;
+  } else {
+    eventsData.push(ev);
+  }
+
+  closeEventModal();
+  refreshEventsUI();
+}
+
+/* ─── Edit / Delete ─── */
+function openEditEvent(idx) {
+  openEventModal(idx);
+}
+
+function deleteEvent(idx) {
+  if (!confirm('Delete this event?')) return;
+  eventsData.splice(idx, 1);
+  refreshEventsUI();
+}
+
+/* ─── Download JSON ─── */
+function downloadEventsJson() {
+  const blob = new Blob([JSON.stringify(eventsData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'kz-events-backup.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ─── Event listeners ─── */
+document.getElementById('btnAddEvent').addEventListener('click', () => openEventModal(-1));
+document.getElementById('evModalClose').addEventListener('click', closeEventModal);
+document.getElementById('evModalCancel').addEventListener('click', closeEventModal);
+document.getElementById('evModalSave').addEventListener('click', saveEvent);
+document.getElementById('evmStatus').addEventListener('change', toggleStatusFields);
+document.getElementById('btnDownloadEventsJson').addEventListener('click', downloadEventsJson);
+
+// Close modal on overlay click
+document.getElementById('evModalOverlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('evModalOverlay')) closeEventModal();
+});
+
+// Filters
+['evFilterName', 'evFilterPlayer', 'evFilterTeamWin', 'evFilterStars'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener(el.tagName === 'INPUT' ? 'input' : 'change', renderEventsGrid);
+});
+
+document.getElementById('btnClearEvFilters').addEventListener('click', () => {
+  document.getElementById('evFilterName').value = '';
+  document.getElementById('evFilterPlayer').value = '';
+  document.getElementById('evFilterTeamWin').value = '';
+  document.getElementById('evFilterStars').value = '';
+  renderEventsGrid();
 });
 
 /* ════════════════════════════════════════
@@ -1913,4 +2392,6 @@ $('#btnSeedClear').addEventListener('click', () => {
 (async () => {
   try { await loadAll(false); }
   catch (e) { console.error(e); setStatus('Auto-load failed. Ensure /file/*.xlsx exists.', 'err'); }
+  try { await loadEventsJson(); }
+  catch (e) { console.warn('Events load failed:', e); }
 })();

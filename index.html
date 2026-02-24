@@ -54,6 +54,9 @@
       <a class="nav-item" data-panel="seeding" onclick="switchPanel('seeding');return false" href="#">
         <span class="nav-icon">🌱</span><span class="nav-label">Seeding</span>
       </a>
+      <a class="nav-item" data-panel="events" onclick="switchPanel('events');return false" href="#">
+        <span class="nav-icon">🏆</span><span class="nav-label">Events</span>
+      </a>
 
       <div class="sidebar-divider"></div>
       <div class="sidebar-section">Intelligence</div>
@@ -523,20 +526,39 @@
           </div>
           <div class="card-body">
             <div class="seed-layout">
-              <!-- Left: team input -->
+              <!-- Left: team selection -->
               <div class="seed-input-area">
-                <label class="form-label">Team Names <span style="color:var(--muted2); font-weight:400">(one per line)</span></label>
-                <textarea class="form-control seed-textarea" id="seedTeamInput" placeholder="Team Alpha&#10;Team Bravo&#10;Team Charlie&#10;..."></textarea>
-                <div class="seed-actions">
+
+                <!-- Quick select by text -->
+                <div class="seed-quick-select">
+                  <label class="form-label">Quick Select <span style="color:var(--muted2); font-weight:400">(one team per line)</span></label>
+                  <textarea class="form-control seed-textarea" id="seedQuickInput" rows="5" placeholder="Team Alpha&#10;Team Bravo&#10;Team Charlie&#10;..."></textarea>
+                  <div class="seed-actions" style="margin-top:8px">
+                    <button class="btn btn-ghost" id="btnSeedQuickSelect">⚡ Select Written Teams</button>
+                    <button class="btn btn-ghost" id="btnSeedSelectAll">☑ All</button>
+                    <button class="btn btn-ghost" id="btnSeedClearSelection">✕ Clear</button>
+                  </div>
+                </div>
+
+                <div class="sidebar-divider" style="margin:14px 0"></div>
+
+                <!-- Search filter for team list -->
+                <label class="form-label">Teams from ranking.xlsx <span class="seed-selected-count" id="seedSelectedCount">(0 selected)</span></label>
+                <input class="form-control" id="seedTeamSearch" type="text" placeholder="Filter teams…" style="margin-bottom:8px; min-width:0; width:100%">
+                <div class="seed-team-list" id="seedTeamList">
+                  <div class="empty-state" style="font-size:12px; padding:16px">Loading ranking data…</div>
+                </div>
+
+                <div class="seed-actions" style="margin-top:12px">
                   <button class="btn btn-primary" id="btnSeedGenerate">🌱 Generate Seeding</button>
-                  <button class="btn btn-ghost" id="btnSeedClear">✕ Clear</button>
                 </div>
                 <div class="seed-info" id="seedInfo"></div>
               </div>
+
               <!-- Right: results -->
               <div class="seed-results-area">
                 <div id="seedOutput">
-                  <div class="empty-state">Enter team names and click <strong>Generate Seeding</strong> to create matchups.</div>
+                  <div class="empty-state">Select teams and click <strong>Generate Seeding</strong> to create matchups.</div>
                 </div>
               </div>
             </div>
@@ -581,8 +603,205 @@
           </div>
         </div>
       </div>
+      <!-- ═══════════════════════════════════════
+           EVENTS (Ranking Tool)
+      ═══════════════════════════════════════ -->
+      <div class="panel" id="panel-events">
+
+        <!-- Summary stats -->
+        <div class="stats-row" id="eventsStatsRow">
+          <div class="stat-pill"><span class="stat-label">Total Events</span><span class="stat-value" id="evTotalEvents">0</span></div>
+          <div class="stat-pill"><span class="stat-label">Live Now</span><span class="stat-value warn" id="evLiveEvents">0</span></div>
+          <div class="stat-pill"><span class="stat-label">Majors</span><span class="stat-value" id="evMajors">0</span></div>
+          <div class="stat-pill"><span class="stat-label">Total Prize Pool</span><span class="stat-value" id="evTotalPrize" style="font-size:16px">$0</span></div>
+        </div>
+
+        <!-- Filters -->
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Event Filters</div><div class="card-subtitle">Search and filter events</div></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn btn-primary" id="btnAddEvent">＋ Add Event</button>
+              <button class="btn btn-ghost" id="btnDownloadEventsJson">↓ Export JSON</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="ev-filters-grid">
+              <div class="form-group">
+                <label class="form-label">Event Name</label>
+                <input class="form-control" id="evFilterName" type="text" placeholder="Search event…" style="min-width:0;width:100%">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Player (Medal Winners)</label>
+                <select class="form-control" id="evFilterPlayer"><option value="">All Players</option></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Team (Tournament Wins)</label>
+                <select class="form-control" id="evFilterTeamWin"><option value="">All Teams</option></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Stars</label>
+                <select class="form-control" id="evFilterStars">
+                  <option value="">All Stars</option>
+                  <option value="1">⭐ 1 Star</option>
+                  <option value="2">⭐⭐ 2 Stars</option>
+                  <option value="3">⭐⭐⭐ 3 Stars</option>
+                  <option value="4">⭐⭐⭐⭐ 4 Stars</option>
+                  <option value="5">⭐⭐⭐⭐⭐ 5 Stars</option>
+                </select>
+              </div>
+              <div style="display:flex;align-items:flex-end">
+                <button class="btn btn-ghost" id="btnClearEvFilters">✕ Clear</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Events Grid -->
+        <div class="ev-grid" id="eventsGrid">
+          <div class="empty-state">Loading events from <strong>kz-events-backup.json</strong>…</div>
+        </div>
+
+      </div>
+
     </div><!-- /panels -->
   </main>
+</div>
+
+<!-- ════════════════════════════════════════════
+     EVENT MODAL (Add / Edit)
+════════════════════════════════════════════ -->
+<div class="ev-modal-overlay" id="evModalOverlay">
+  <div class="ev-modal">
+    <div class="ev-modal-header">
+      <span class="ev-modal-title" id="evModalTitle">Add Event</span>
+      <button class="ev-modal-close" id="evModalClose">✕</button>
+    </div>
+    <div class="ev-modal-body">
+      <div class="ev-modal-grid">
+        <!-- Row 1 -->
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Event Name</label>
+          <input class="form-control" id="evmName" type="text" placeholder="e.g. PGL Major Copenhagen 2024">
+        </div>
+        <!-- Row 2 -->
+        <div class="form-group">
+          <label class="form-label">Google Drive Link</label>
+          <input class="form-control" id="evmDriveLink" type="text" placeholder="https://drive.google.com/...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Prize Pool</label>
+          <input class="form-control" id="evmPrizePool" type="text" placeholder="e.g. $1,250,000">
+        </div>
+        <!-- Row 3 -->
+        <div class="form-group">
+          <label class="form-label">Event Logo URL</label>
+          <input class="form-control" id="evmLogo" type="text" placeholder="https://...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Trophy Logo URL</label>
+          <input class="form-control" id="evmTrophy" type="text" placeholder="https://...">
+        </div>
+        <!-- Row 4 -->
+        <div class="form-group">
+          <label class="form-label">City</label>
+          <input class="form-control" id="evmCity" type="text" placeholder="Copenhagen">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Country</label>
+          <input class="form-control" id="evmCountry" type="text" placeholder="Denmark">
+        </div>
+        <!-- Row 5 -->
+        <div class="form-group">
+          <label class="form-label">Country Flag URL</label>
+          <input class="form-control" id="evmFlag" type="text" placeholder="https://flagcdn.com/w80/dk.png">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Number of Teams</label>
+          <input class="form-control" id="evmTeamCount" type="number" placeholder="24" min="2">
+        </div>
+        <!-- Row 6 -->
+        <div class="form-group">
+          <label class="form-label">Importance (Stars)</label>
+          <select class="form-control" id="evmStars">
+            <option value="1">⭐ 1 Star</option>
+            <option value="2">⭐⭐ 2 Stars</option>
+            <option value="3" selected>⭐⭐⭐ 3 Stars</option>
+            <option value="4">⭐⭐⭐⭐ 4 Stars</option>
+            <option value="5">⭐⭐⭐⭐⭐ 5 Stars</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Major</label>
+          <select class="form-control" id="evmMajor">
+            <option value="no">No</option>
+            <option value="yes">Yes</option>
+          </select>
+        </div>
+        <!-- Row 7 — Status -->
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Status</label>
+          <select class="form-control" id="evmStatus" style="max-width:260px">
+            <option value="Finished">Finished</option>
+            <option value="Live">Live</option>
+          </select>
+        </div>
+
+        <!-- LIVE fields (hidden by default) -->
+        <div class="ev-live-fields" id="evmLiveFields" style="display:none; grid-column:1/-1">
+          <div class="ev-modal-grid">
+            <div class="form-group" style="grid-column:1/-1">
+              <label class="form-label">Stage</label>
+              <input class="form-control" id="evmStage" type="text" placeholder="e.g. Playoffs / Group Stage">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Next Match 1</label>
+              <input class="form-control" id="evmNext1" type="text" placeholder="Team A vs Team B">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Next Match 2</label>
+              <input class="form-control" id="evmNext2" type="text" placeholder="Team C vs Team D">
+            </div>
+            <div class="form-group" style="grid-column:1/-1">
+              <label class="form-label">Next Match 3</label>
+              <input class="form-control" id="evmNext3" type="text" placeholder="Team E vs Team F">
+            </div>
+          </div>
+        </div>
+
+        <!-- FINISHED fields (shown by default) -->
+        <div class="ev-finished-fields" id="evmFinishedFields" style="grid-column:1/-1">
+          <div class="ev-modal-grid">
+            <div class="form-group">
+              <label class="form-label">Winner Team (1st)</label>
+              <input class="form-control" id="evmWinner" type="text" placeholder="Team name">
+            </div>
+            <div class="form-group">
+              <label class="form-label">2nd Place</label>
+              <input class="form-control" id="evmSecond" type="text" placeholder="Team name">
+            </div>
+            <div class="form-group">
+              <label class="form-label">MVP</label>
+              <input class="form-control" id="evmMVP" type="text" placeholder="Player name">
+            </div>
+            <div class="form-group">
+              <label class="form-label">EVP</label>
+              <input class="form-control" id="evmEVP" type="text" placeholder="Player name">
+            </div>
+            <div class="form-group" style="grid-column:1/-1">
+              <label class="form-label">VP</label>
+              <input class="form-control" id="evmVP" type="text" placeholder="Player name">
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div class="ev-modal-footer">
+      <button class="btn btn-ghost" id="evModalCancel">Cancel</button>
+      <button class="btn btn-primary" id="evModalSave">💾 Save Event</button>
+    </div>
+  </div>
 </div>
 
 <script src="assets/app.js"></script>

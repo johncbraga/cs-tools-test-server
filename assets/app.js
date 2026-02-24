@@ -51,12 +51,7 @@ const PANEL_TITLES = {
   predictor: 'Match Predictor',
   legends: 'Legends Hall',
   'analysis-vrs': 'VRS Analysis',
-  'analysis-hltv': 'Data Insights',
-  'pro-analyses': 'Pro Analyses',
-  'database': 'Database',
-  'seeding': 'Seeding',
-  'events': 'Events',
-  'finances': 'Finances'
+  'analysis-hltv': 'Data Insights'
 };
 
 function switchPanel(name) {
@@ -67,12 +62,6 @@ function switchPanel(name) {
   const nav = $(`[data-panel="${name}"]`);
   if (nav) nav.classList.add('active');
   $('#pageTitle').textContent = PANEL_TITLES[name] || name;
-
-  // Lazy-load iframe panels on first visit
-  const frame = $(`#frame-${name}`);
-  if (frame && !frame.src) {
-    frame.src = frame.dataset.src;
-  }
 }
 
 /* ════════════════════════════════════════

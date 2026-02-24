@@ -31,6 +31,9 @@ let historyData = [];
 let paFilteredTeam = '';
 let paFilteredOpponent = '';
 
+/* Dashboard state */
+let dashSortDesc = true;
+
 /* ════════════════════════════════════════
    SIDEBAR TOGGLE
 ════════════════════════════════════════ */
@@ -491,42 +494,85 @@ function renderDashTable(metric) {
   const idxTeam = hltvHeaders.indexOf('Team');
   const idxRegion = hltvHeaders.indexOf('Region');
   const idxTier = hltvHeaders.indexOf('Tier');
-  const idxMetric = hltvHeaders.indexOf(metric);
   const idxPts = hltvHeaders.indexOf('Points');
+  const idxVictories = hltvHeaders.indexOf('Victories');
+  const idxLoses = hltvHeaders.indexOf('Loses');
+  const idxStreak = hltvHeaders.indexOf('Streak');
+  const idxPrestige = hltvHeaders.indexOf('Prestige');
+  const idxMajors = hltvHeaders.indexOf('Majors');
+  const idxTrophies = hltvHeaders.indexOf('Tournaments Trophies');
+  const idxMetric = hltvHeaders.indexOf(metric);
 
-  // Sort by selected metric descending
+  // Sort ALL teams by selected metric
   const sorted = idxMetric >= 0
-    ? [...hltvRows].sort((a, b) => num(b[idxMetric]) - num(a[idxMetric])).slice(0, 20)
-    : hltvRows.slice(0, 20);
+    ? [...hltvRows].sort((a, b) => dashSortDesc ? num(b[idxMetric]) - num(a[idxMetric]) : num(a[idxMetric]) - num(b[idxMetric]))
+    : [...hltvRows];
 
-  $('#dashTableSubtitle').textContent = 'sorted by ' + metric;
+  const sortLabel = dashSortDesc ? '↓ Desc' : '↑ Asc';
+  const sortBtn = document.getElementById('btnDashSortOrder');
+  if (sortBtn) sortBtn.textContent = sortLabel;
+
+  $('#dashTableSubtitle').textContent = 'sorted by ' + metric + (dashSortDesc ? ' (desc)' : ' (asc)');
+
+  // Determine which column is the active metric for highlighting
+  const metricKey = metric;
 
   const table = document.getElementById('dashTable');
-  let html = `<thead><tr><th>#</th><th>Team</th><th class="right">${escHtml(metric)}</th><th class="right">Points</th><th>Region</th><th>Tier</th></tr></thead><tbody>`;
+  let html = `<thead><tr>
+    <th>#</th><th>Team</th>
+    <th class="right dash-col-header ${metricKey === 'Points' ? 'dash-col-active' : ''}" data-dash-col="Points">Pts</th>
+    <th class="right dash-col-header ${metricKey === 'Victories' ? 'dash-col-active' : ''}" data-dash-col="Victories">W</th>
+    <th class="right dash-col-header ${metricKey === 'Loses' ? 'dash-col-active' : ''}" data-dash-col="Loses">L</th>
+    <th class="right dash-col-header ${metricKey === 'Streak' ? 'dash-col-active' : ''}" data-dash-col="Streak">Streak</th>
+    <th>Region</th><th>Tier</th>
+    <th class="right dash-col-header ${metricKey === 'Prestige' ? 'dash-col-active' : ''}" data-dash-col="Prestige">Prestige</th>
+    <th class="right dash-col-header ${metricKey === 'Majors' ? 'dash-col-active' : ''}" data-dash-col="Majors">Majors</th>
+    <th class="right dash-col-header ${metricKey === 'Tournaments Trophies' ? 'dash-col-active' : ''}" data-dash-col="Tournaments Trophies">Trophies</th>
+  </tr></thead><tbody>`;
 
   sorted.forEach((r, i) => {
     const teamName = (r[idxTeam] || '?').toString();
-    const metricVal = idxMetric >= 0 ? num(r[idxMetric]) : 0;
     const ptsVal = idxPts >= 0 ? num(r[idxPts]) : 0;
+    const wVal = idxVictories >= 0 ? num(r[idxVictories]) : 0;
+    const lVal = idxLoses >= 0 ? num(r[idxLoses]) : 0;
+    const sVal = idxStreak >= 0 ? num(r[idxStreak]) : 0;
     const reg = idxRegion >= 0 ? (r[idxRegion] || '').toString().trim() : '';
     const tier = idxTier >= 0 ? (r[idxTier] || '').toString().trim() : '';
+    const presVal = idxPrestige >= 0 ? num(r[idxPrestige]) : 0;
+    const majVal = idxMajors >= 0 ? num(r[idxMajors]) : 0;
+    const tropVal = idxTrophies >= 0 ? num(r[idxTrophies]) : 0;
+
     const rc = regionCls(reg);
     const rh = reg ? `<span class="region-tag ${rc}"><span class="region-dot"></span>${escHtml(regionLabel(reg))}</span>` : '—';
     const tc = tierBadgeClass(tier);
     const th = tier ? `<span class="tier-badge ${tc}">${escHtml(tier)}</span>` : '—';
     const pos = i + 1;
 
-    // Format metric value
-    let metricDisplay;
-    if (metric === 'Points' || metric === 'Prestige') metricDisplay = metricVal.toFixed(2);
-    else metricDisplay = metricVal;
+    // Streak display with color
+    const streakDisplay = sVal === 0
+      ? '<span class="streak-badge cold">—</span>'
+      : `<span class="streak-badge hot">🔥${sVal}</span>`;
+
+    // Highlight class for the active metric column
+    const hlPts = metricKey === 'Points' ? ' dash-cell-active' : '';
+    const hlW = metricKey === 'Victories' ? ' dash-cell-active' : '';
+    const hlL = metricKey === 'Loses' ? ' dash-cell-active' : '';
+    const hlS = metricKey === 'Streak' ? ' dash-cell-active' : '';
+    const hlPres = metricKey === 'Prestige' ? ' dash-cell-active' : '';
+    const hlMaj = metricKey === 'Majors' ? ' dash-cell-active' : '';
+    const hlTrop = metricKey === 'Tournaments Trophies' ? ' dash-cell-active' : '';
 
     html += `<tr class="${rowClass(pos)}">
       <td>${rankBadgeHtml(pos)}</td>
       <td>${teamNameHtml(teamName, pos)}</td>
-      <td class="right mono metric-cell">${metricDisplay}</td>
-      <td class="right mono">${ptsVal.toFixed(0)}</td>
+      <td class="right mono${hlPts}">${ptsVal.toFixed(0)}</td>
+      <td class="right mono${hlW}">${wVal}</td>
+      <td class="right mono${hlL}">${lVal}</td>
+      <td class="center${hlS}">${streakDisplay}</td>
       <td>${rh}</td><td>${th}</td>
+      <td class="right mono${hlPres}">${presVal.toFixed(2)}</td>
+      <td class="right mono${hlMaj}">${majVal}</td>
+      <td class="right mono${hlTrop}">${tropVal}</td>
     </tr>`;
   });
 
@@ -1050,13 +1096,29 @@ function setupAutocomplete(inputId, listId, getItems, onSelect) {
   if (!input || !list) return;
 
   input.addEventListener('input', () => {
-    const val = input.value.trim().toLowerCase();
-    if (!val) { list.innerHTML = ''; list.style.display = 'none'; return; }
-    const items = getItems().filter(t => t.toLowerCase().includes(val));
+    let val = input.value.trim().toLowerCase();
+    // Strip trailing period for autocomplete suggestions (period is only for filtering)
+    const cleanVal = val.endsWith('.') ? val.slice(0, -1) : val;
+    if (!cleanVal) { list.innerHTML = ''; list.style.display = 'none'; return; }
+
+    const items = getItems().filter(t => t.toLowerCase().includes(cleanVal));
     if (!items.length) { list.innerHTML = ''; list.style.display = 'none'; return; }
+
+    // Sort: exact match first, then startsWith, then includes
+    items.sort((a, b) => {
+      const aL = a.toLowerCase(), bL = b.toLowerCase();
+      const aExact = aL === cleanVal, bExact = bL === cleanVal;
+      if (aExact && !bExact) return -1;
+      if (!aExact && bExact) return 1;
+      const aStarts = aL.startsWith(cleanVal), bStarts = bL.startsWith(cleanVal);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+      return a.localeCompare(b);
+    });
+
     list.innerHTML = items.slice(0, 15).map(t => {
-      const idx = t.toLowerCase().indexOf(val);
-      const hl = idx >= 0 ? escHtml(t.slice(0, idx)) + '<mark>' + escHtml(t.slice(idx, idx + val.length)) + '</mark>' + escHtml(t.slice(idx + val.length)) : escHtml(t);
+      const idx = t.toLowerCase().indexOf(cleanVal);
+      const hl = idx >= 0 ? escHtml(t.slice(0, idx)) + '<mark>' + escHtml(t.slice(idx, idx + cleanVal.length)) + '</mark>' + escHtml(t.slice(idx + cleanVal.length)) : escHtml(t);
       return `<div class="pa-autocomplete-item" data-value="${escHtml(t)}">${hl}</div>`;
     }).join('');
     list.style.display = 'block';
@@ -1149,10 +1211,23 @@ function initProAnalyses() {
   renderHistoryTable();
 }
 
+/* ─── Team name match helper — supports "." suffix for strict exact match ─── */
+function teamNameMatch(teamFromData, filterValue) {
+  if (!filterValue) return true;
+  const dataName = teamFromData.toLowerCase().trim();
+  // If filter ends with ".", force strict exact match (strip the period)
+  if (filterValue.endsWith('.')) {
+    const exact = filterValue.slice(0, -1).toLowerCase().trim();
+    return dataName === exact;
+  }
+  // Default: exact match
+  return dataName === filterValue.toLowerCase().trim();
+}
+
 /* ─── Filter & render history ─── */
 function getFilteredHistory() {
-  const team = paFilteredTeam.toLowerCase();
-  const opp = paFilteredOpponent.toLowerCase();
+  const team = paFilteredTeam.trim();
+  const opp = paFilteredOpponent.trim();
   const map = document.getElementById('paFilterMap').value;
   const event = document.getElementById('paFilterEvent').value;
   const date = document.getElementById('paFilterDate').value;
@@ -1160,12 +1235,11 @@ function getFilteredHistory() {
   const year = document.getElementById('paFilterYear').value;
 
   return historyData.filter(m => {
-    if (team && !(m.team1.toLowerCase() === team || m.team2.toLowerCase() === team)) return false;
+    if (team && !(teamNameMatch(m.team1, team) || teamNameMatch(m.team2, team))) return false;
     if (opp) {
       if (!team) return false; // opponent filter only works with a team
-      const t1L = m.team1.toLowerCase(), t2L = m.team2.toLowerCase();
-      const teamMatch = t1L === team || t2L === team;
-      const oppMatch = t1L === opp || t2L === opp;
+      const teamMatch = teamNameMatch(m.team1, team) || teamNameMatch(m.team2, team);
+      const oppMatch = teamNameMatch(m.team1, opp) || teamNameMatch(m.team2, opp);
       if (!teamMatch || !oppMatch) return false;
     }
     if (map && m.map !== map) return false;
@@ -1191,7 +1265,7 @@ function renderHistoryTable() {
     return;
   }
 
-  const teamFilter = paFilteredTeam.toLowerCase();
+  const teamFilter = paFilteredTeam.trim();
 
   body.innerHTML = filtered.map(m => {
     // Format date
@@ -1200,8 +1274,8 @@ function renderHistoryTable() {
     // Determine outcome for the filtered team
     let outcomeHtml = '';
     if (teamFilter) {
-      const isTeam1 = m.team1.toLowerCase() === teamFilter;
-      const isTeam2 = m.team2.toLowerCase() === teamFilter;
+      const isTeam1 = teamNameMatch(m.team1, teamFilter);
+      const isTeam2 = teamNameMatch(m.team2, teamFilter);
       const selectedTeam = isTeam1 ? m.team1 : isTeam2 ? m.team2 : '';
       if (selectedTeam) {
         const won = m.winner === selectedTeam;
@@ -1215,15 +1289,15 @@ function renderHistoryTable() {
     let t1Html = escHtml(m.team1);
     let t2Html = escHtml(m.team2);
     if (teamFilter) {
-      if (m.team1.toLowerCase() === teamFilter) t1Html = `<strong class="pa-team-highlight">${escHtml(m.team1)}</strong>`;
-      if (m.team2.toLowerCase() === teamFilter) t2Html = `<strong class="pa-team-highlight">${escHtml(m.team2)}</strong>`;
+      if (teamNameMatch(m.team1, teamFilter)) t1Html = `<strong class="pa-team-highlight">${escHtml(m.team1)}</strong>`;
+      if (teamNameMatch(m.team2, teamFilter)) t2Html = `<strong class="pa-team-highlight">${escHtml(m.team2)}</strong>`;
     }
 
     // Color the result based on winner
     let resultCls = '';
     if (teamFilter) {
-      const isTeam1 = m.team1.toLowerCase() === teamFilter;
-      const isTeam2 = m.team2.toLowerCase() === teamFilter;
+      const isTeam1 = teamNameMatch(m.team1, teamFilter);
+      const isTeam2 = teamNameMatch(m.team2, teamFilter);
       if (isTeam1 && m.score1 > m.score2) resultCls = 'pa-result-win';
       else if (isTeam1 && m.score1 < m.score2) resultCls = 'pa-result-loss';
       else if (isTeam2 && m.score2 > m.score1) resultCls = 'pa-result-win';
@@ -1666,6 +1740,10 @@ $('#regionRankingSelect').addEventListener('change', recomputeRegionRanking);
 $('#btnRunVrsAnalysis').addEventListener('click', () => { runVrsAnalysis(); switchPanel('analysis-vrs'); });
 $('#btnRunHltvAnalysis').addEventListener('click', () => { runHltvAnalysis(); switchPanel('analysis-hltv'); });
 $('#dashMetric').addEventListener('change', renderDashboard);
+$('#btnDashSortOrder').addEventListener('click', () => {
+  dashSortDesc = !dashSortDesc;
+  renderDashboard();
+});
 $('#chartRegionFilter').addEventListener('change', renderHltvCharts);
 $('#teamPieSelect').addEventListener('change', renderTeamPie);
 $('#legendsRegionFilter').addEventListener('change', renderLegendsTable);

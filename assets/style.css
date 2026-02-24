@@ -1079,6 +1079,29 @@ canvas { width: 100% !important; }
 .text-xs { font-size: 11px; }
 .metric-cell { color: var(--accent); font-weight: 700; }
 
+/* Dashboard active column highlight */
+.dash-col-active {
+  color: var(--accent) !important;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(79, 140, 255, 0.3);
+}
+.dash-cell-active {
+  color: var(--accent) !important;
+  font-weight: 700;
+  background: rgba(79, 140, 255, 0.06);
+}
+.dash-col-header {
+  cursor: default;
+  transition: color 0.2s;
+}
+.dash-sort-btn {
+  font-size: 11px !important;
+  padding: 4px 10px !important;
+  min-width: 70px;
+  font-family: var(--font-mono) !important;
+  letter-spacing: 0.02em;
+}
+
 /* ═══════════════════════════════════════
    RESPONSIVE
 ═══════════════════════════════════════ */

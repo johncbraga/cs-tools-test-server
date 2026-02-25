@@ -695,18 +695,9 @@
         </div>
         <!-- Row 3 -->
         <div class="form-group">
-          <label class="form-label">Event Logo (URL or Upload)</label>
-          <div class="ev-logo-row">
-            <input class="form-control" id="evmLogo" type="text" placeholder="https://... or data:image/...">
-            <input class="form-control ev-logo-file" id="evmLogoFile" type="file" accept="image/*" title="Upload logo image">
-            <button class="btn btn-ghost ev-logo-clear" id="evmLogoClear" type="button">Clear</button>
-          </div>
-          <div class="ev-logo-preview" id="evmLogoPreviewWrap" style="display:none">
-            <img id="evmLogoPreview" alt="Logo preview">
-          </div>
-          <div class="text-xs text-muted" style="margin-top:6px">
-            Uploads are saved inside the exported JSON as a base64 <span class="mono">data:</span> URL.
-          </div>
+          <label class="form-label">Event Logo URL</label>
+          <input class="form-control" id="evmLogo" type="text" placeholder="https://...">
+        </div>
         <div class="form-group">
           <label class="form-label">Trophy Logo URL</label>
           <input class="form-control" id="evmTrophy" type="text" placeholder="https://...">

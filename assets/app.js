@@ -2126,7 +2126,8 @@ function renderEventsGrid() {
 
     // Use the event logo as a subtle background watermark (CSS var consumed by .ev-card::before)
     const bg = e.logo ? ` style="--ev-bg:url(&quot;${escHtml(e.logo)}&quot;)"` : '';
-    html += `<div class="ev-card ${isLive ? 'ev-card-live' : ''}"${bg}>`;
+    // Standardized visual types (status/major) as explicit classes for easier styling
+    html += `<div class="ev-card ${isLive ? 'ev-card-live' : ''} ${isFinished ? 'ev-card-finished' : ''} ${isMajor ? 'ev-card-major' : ''}"${bg}>`;
 
     // Top section: logo + info
     html += `<div class="ev-card-top">`;

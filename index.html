@@ -697,6 +697,15 @@
         <div class="form-group">
           <label class="form-label">Event Logo URL</label>
           <input class="form-control" id="evmLogo" type="text" placeholder="https://...">
+
+          <div class="ev-logo-upload">
+            <div class="ev-logo-upload-row">
+              <input class="form-control" id="evmLogoFile" type="file" accept="image/*">
+              <button class="btn btn-ghost" id="evmLogoClear" type="button" title="Clear logo">✕</button>
+            </div>
+            <img id="evmLogoPreview" class="ev-logo-preview" alt="Logo preview" style="display:none">
+            <div class="ev-logo-hint">Upload overrides the URL field by saving the image as an embedded <span class="mono">data:</span> URL.</div>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">Trophy Logo URL</label>

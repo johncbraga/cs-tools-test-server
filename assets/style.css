@@ -2186,42 +2186,48 @@ canvas { width: 100% !important; }
 
 /* ─── Event Card ─── */
 .ev-card {
-  position: relative;
-  isolation: isolate;
-
-  /* Logo as background (set via inline --evbg) */
-  --evbg: none;
-  background-image:
-    linear-gradient(135deg, rgba(17,29,48,0.92) 0%, rgba(13,20,33,0.97) 100%),
-    var(--evbg);
-  background-size: cover, contain;
-  background-position: center, center;
-  background-repeat: no-repeat, no-repeat;
-
+  background: linear-gradient(135deg, rgba(17,29,48,0.92) 0%, rgba(13,20,33,0.97) 100%);
   border: 1px solid var(--border);
   border-radius: 14px;
   overflow: hidden;
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
   display: flex;
   flex-direction: column;
+  position: relative;
+  isolation: isolate;
 }
 
-/* Darken the logo a bit so text stays readable */
+/* Watermark logo background (uses CSS var: --ev-bg) */
 .ev-card::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(7,11,18,0.55);
+  background-image: var(--ev-bg);
+  background-repeat: no-repeat;
+  background-position: center;
+  /* Fill the whole card area (requested) */
+  background-size: cover;
+  /* Keep the original colors (no grayscale) but stay subtle */
+  opacity: 0.18;
+  filter: saturate(1.05) contrast(1.05);
   pointer-events: none;
   z-index: 0;
 }
 
-/* Keep card content above the background/overlay */
-.ev-card > * {
-  position: relative;
+/* Readability layer above the logo background */
+.ev-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(7,11,18,0.72), rgba(7,11,18,0.88));
+  pointer-events: none;
   z-index: 1;
 }
 
+.ev-card > * {
+  position: relative;
+  z-index: 2;
+}
 
 .ev-card:hover {
   border-color: var(--border-bright);
@@ -2232,6 +2238,15 @@ canvas { width: 100% !important; }
 .ev-card-live {
   border-color: rgba(255,185,48,0.35);
   box-shadow: 0 0 18px rgba(255,185,48,0.08);
+}
+
+.ev-card-major {
+  border-color: rgba(255,215,0,0.28);
+  box-shadow: 0 0 18px rgba(255,215,0,0.06);
+}
+
+.ev-card-finished {
+  border-color: rgba(0,232,122,0.18);
 }
 
 .ev-card-live:hover {
@@ -2265,6 +2280,38 @@ canvas { width: 100% !important; }
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+}
+
+/* ─── Event Modal: logo upload UI ─── */
+.ev-logo-upload {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px dashed rgba(79,140,255,0.25);
+  background: rgba(7,11,18,0.35);
+}
+
+.ev-logo-upload-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ev-logo-preview {
+  margin-top: 10px;
+  width: 100%;
+  height: 130px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgba(79,140,255,0.18);
+  background: rgba(7,11,18,0.55);
+}
+
+.ev-logo-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted2);
+  line-height: 1.35;
 }
 
 .ev-card-info {

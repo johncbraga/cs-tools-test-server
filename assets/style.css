@@ -2193,6 +2193,28 @@ canvas { width: 100% !important; }
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
   display: flex;
   flex-direction: column;
+  position: relative;
+  isolation: isolate;
+}
+
+/* Watermark logo background (uses CSS var: --ev-bg) */
+.ev-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--ev-bg);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: 0.10;
+  filter: grayscale(1);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ev-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 .ev-card:hover {
@@ -2237,6 +2259,38 @@ canvas { width: 100% !important; }
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+}
+
+/* ─── Event Modal: logo upload UI ─── */
+.ev-logo-upload {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px dashed rgba(79,140,255,0.25);
+  background: rgba(7,11,18,0.35);
+}
+
+.ev-logo-upload-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ev-logo-preview {
+  margin-top: 10px;
+  width: 100%;
+  max-height: 130px;
+  object-fit: contain;
+  border-radius: 10px;
+  border: 1px solid rgba(79,140,255,0.18);
+  background: rgba(7,11,18,0.55);
+}
+
+.ev-logo-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted2);
+  line-height: 1.35;
 }
 
 .ev-card-info {

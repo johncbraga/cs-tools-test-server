@@ -2124,7 +2124,9 @@ function renderEventsGrid() {
     const starStr = '⭐'.repeat(Math.min(5, Math.max(1, parseInt(e.stars) || 0)));
     const isMajor = e.major === 'yes' || e.major === true;
 
-    html += `<div class="ev-card ${isLive ? 'ev-card-live' : ''}">`;
+    // Use the event logo as a subtle background watermark (CSS var consumed by .ev-card::before)
+    const bg = e.logo ? ` style="--ev-bg:url(&quot;${escHtml(e.logo)}&quot;)"` : '';
+    html += `<div class="ev-card ${isLive ? 'ev-card-live' : ''}"${bg}>`;
 
     // Top section: logo + info
     html += `<div class="ev-card-top">`;
@@ -2258,6 +2260,11 @@ function openEventModal(editIdx = -1) {
     }
   }
 
+  // Always reset file picker (browsers don't allow programmatic prefill anyway)
+  const f = document.getElementById('evmLogoFile');
+  if (f) f.value = '';
+  updateEventLogoPreview();
+
   overlay.classList.add('visible');
 }
 
@@ -2273,10 +2280,27 @@ function clearEventModal() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  const f = document.getElementById('evmLogoFile');
+  if (f) f.value = '';
+  updateEventLogoPreview();
   document.getElementById('evmStars').value = '3';
   document.getElementById('evmMajor').value = 'no';
   document.getElementById('evmStatus').value = 'Finished';
   toggleStatusFields();
+}
+
+/* ─── Logo upload / preview helpers ─── */
+function updateEventLogoPreview() {
+  const url = (document.getElementById('evmLogo')?.value || '').trim();
+  const img = document.getElementById('evmLogoPreview');
+  if (!img) return;
+  if (!url) {
+    img.style.display = 'none';
+    img.removeAttribute('src');
+    return;
+  }
+  img.src = url;
+  img.style.display = '';
 }
 
 function toggleStatusFields() {
@@ -2366,6 +2390,40 @@ document.getElementById('evModalCancel').addEventListener('click', closeEventMod
 document.getElementById('evModalSave').addEventListener('click', saveEvent);
 document.getElementById('evmStatus').addEventListener('change', toggleStatusFields);
 document.getElementById('btnDownloadEventsJson').addEventListener('click', downloadEventsJson);
+
+// Logo input + upload
+const evmLogoInput = document.getElementById('evmLogo');
+if (evmLogoInput) evmLogoInput.addEventListener('input', updateEventLogoPreview);
+
+const evmLogoFile = document.getElementById('evmLogoFile');
+if (evmLogoFile) {
+  evmLogoFile.addEventListener('change', () => {
+    const file = evmLogoFile.files && evmLogoFile.files[0];
+    if (!file) return;
+    if (!file.type || !file.type.startsWith('image/')) {
+      alert('Please select an image file.');
+      evmLogoFile.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      document.getElementById('evmLogo').value = String(reader.result || '');
+      updateEventLogoPreview();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+const evmLogoClear = document.getElementById('evmLogoClear');
+if (evmLogoClear) {
+  evmLogoClear.addEventListener('click', () => {
+    const t = document.getElementById('evmLogo');
+    if (t) t.value = '';
+    const f = document.getElementById('evmLogoFile');
+    if (f) f.value = '';
+    updateEventLogoPreview();
+  });
+}
 
 // Close modal on overlay click
 document.getElementById('evModalOverlay').addEventListener('click', (e) => {

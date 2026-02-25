@@ -698,29 +698,36 @@
           <label class="form-label">Event Logo URL</label>
           <input class="form-control" id="evmLogo" type="text" placeholder="https://...">
         </div>
+        <!-- New checkbox -->
+        <div class="form-group" style="grid-column:1/-1; margin-top:4px;">
+          <label class="form-label" style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="evmBgFromLogo">
+            <span>Use logo as card background (with overlay)</span>
+          </label>
+        </div>
+        <!-- Row 4 -->
         <div class="form-group">
           <label class="form-label">Trophy Logo URL</label>
           <input class="form-control" id="evmTrophy" type="text" placeholder="https://...">
         </div>
-        <!-- Row 4 -->
         <div class="form-group">
           <label class="form-label">City</label>
           <input class="form-control" id="evmCity" type="text" placeholder="Copenhagen">
         </div>
+        <!-- Row 5 -->
         <div class="form-group">
           <label class="form-label">Country</label>
           <input class="form-control" id="evmCountry" type="text" placeholder="Denmark">
         </div>
-        <!-- Row 5 -->
         <div class="form-group">
           <label class="form-label">Country Flag URL</label>
           <input class="form-control" id="evmFlag" type="text" placeholder="https://flagcdn.com/w80/dk.png">
         </div>
+        <!-- Row 6 -->
         <div class="form-group">
           <label class="form-label">Number of Teams</label>
           <input class="form-control" id="evmTeamCount" type="number" placeholder="24" min="2">
         </div>
-        <!-- Row 6 -->
         <div class="form-group">
           <label class="form-label">Importance (Stars)</label>
           <select class="form-control" id="evmStars">
@@ -731,6 +738,7 @@
             <option value="5">⭐⭐⭐⭐⭐ 5 Stars</option>
           </select>
         </div>
+        <!-- Row 7 -->
         <div class="form-group">
           <label class="form-label">Major</label>
           <select class="form-control" id="evmMajor">
@@ -738,7 +746,6 @@
             <option value="yes">Yes</option>
           </select>
         </div>
-        <!-- Row 7 — Status -->
         <div class="form-group" style="grid-column:1/-1">
           <label class="form-label">Status</label>
           <select class="form-control" id="evmStatus" style="max-width:260px">

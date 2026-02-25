@@ -166,6 +166,14 @@ const escHtml = s => String(s ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;')
   .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+
+
+// Escapes a URL for safe usage inside CSS url('...') in inline styles
+const escCssUrl = s => String(s ?? '')
+  .replace(/\/g, '\\')
+  .replace(/'/g, '%27')
+  .replace(/"/g, '%22')
+  .replace(/\n|\r/g, '');
 /* ════════════════════════════════════════
    EXCEL LOADING
 ════════════════════════════════════════ */
@@ -2124,13 +2132,12 @@ function renderEventsGrid() {
     const starStr = '⭐'.repeat(Math.min(5, Math.max(1, parseInt(e.stars) || 0)));
     const isMajor = e.major === 'yes' || e.major === true;
 
-    html += `<div class="ev-card ${isLive ? 'ev-card-live' : ''}">`;
+    const bgStyle = e.logo ? ` style="--evbg:url('${escCssUrl(e.logo)}')"` : '';
 
-    // Top section: logo + info
+    html += `<div class="ev-card ${isLive ? 'ev-card-live' : ''}"${bgStyle}>`;
+
+    // Top section: info
     html += `<div class="ev-card-top">`;
-    if (e.logo) {
-      html += `<div class="ev-card-logo-wrap"><img src="${escHtml(e.logo)}" alt="" onerror="this.style.display='none'"></div>`;
-    }
     html += `<div class="ev-card-info">`;
     // Event name with optional Drive link
     html += `<div class="ev-card-name">`;

@@ -2186,7 +2186,18 @@ canvas { width: 100% !important; }
 
 /* ─── Event Card ─── */
 .ev-card {
-  background: linear-gradient(135deg, rgba(17,29,48,0.92) 0%, rgba(13,20,33,0.97) 100%);
+  position: relative;
+  isolation: isolate;
+
+  /* Logo as background (set via inline --evbg) */
+  --evbg: none;
+  background-image:
+    linear-gradient(135deg, rgba(17,29,48,0.92) 0%, rgba(13,20,33,0.97) 100%),
+    var(--evbg);
+  background-size: cover, contain;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+
   border: 1px solid var(--border);
   border-radius: 14px;
   overflow: hidden;
@@ -2194,6 +2205,23 @@ canvas { width: 100% !important; }
   display: flex;
   flex-direction: column;
 }
+
+/* Darken the logo a bit so text stays readable */
+.ev-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(7,11,18,0.55);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Keep card content above the background/overlay */
+.ev-card > * {
+  position: relative;
+  z-index: 1;
+}
+
 
 .ev-card:hover {
   border-color: var(--border-bright);
